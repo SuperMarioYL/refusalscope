@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+.venv-*/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Local assistant config (never commit)
+.claude/
+CLAUDE.md
+
+# build scratch (ai-radar pipeline internals — never commit)
+.spawn.*
+.builder_*
+.build_metadata*
+.stage_*
+PUBLISH_BLOCKED.md
+BUILD_SETUP_NEXT_STEPS.md
+DRIFT_REPORT.md
+GIT_AUTHOR_DRIFT.md

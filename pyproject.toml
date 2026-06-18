@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "refusalscope"
+version = "0.1.0"
+description = "Detect when a hosted LLM silently refuses or shapes its answer."
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "supermario_leo", email = "leo.stack@outlook.com" }]
+keywords = ["llm", "refusal", "guardrail", "observability", "eval", "shaping"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+  "click>=8.1,<9",
+  "pyyaml>=6.0,<7",
+  "rich>=13.7,<14",
+  "pydantic>=2.7,<3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0,<9"]
+
+[project.scripts]
+refusalscope = "refusalscope.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/SuperMarioYL/refusalscope"
+
+[tool.hatch.build.targets.wheel]
+packages = ["refusalscope"]
+
+[tool.hatch.build.targets.sdist]
+include = ["refusalscope", "probes", "examples", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
