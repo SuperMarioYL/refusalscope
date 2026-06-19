@@ -1,0 +1,45 @@
+name: demo
+
+on:
+  workflow_dispatch: {}
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  vhs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the CLI for the demo
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          # Put the console script on PATH for the tape.
+          echo "$(python -c 'import sysconfig; print(sysconfig.get_path("scripts"))')" >> "$GITHUB_PATH"
+      - name: Install vhs + deps (ffmpeg, ttyd, vhs)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          sudo curl -fsSL -o /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64
+          sudo chmod +x /usr/local/bin/ttyd
+          # vhs needs Go to be installed via `go install`.
+          sudo apt-get install -y golang-go
+          go install github.com/charmbracelet/vhs@latest
+      - name: Render demo.gif
+        run: |
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          vhs docs/demo.tape
+      - name: Commit rendered gif
+        run: |
+          git config user.name  "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git add assets/demo.gif
+          git commit -m "chore: render demo gif" || { echo "no change"; exit 0; }
+          git push

@@ -26,7 +26,7 @@ htmlcov/
 .claude/
 CLAUDE.md
 
-# build scratch (ai-radar pipeline internals — never commit)
+# build scratch (internal tooling — never commit)
 .spawn.*
 .builder_*
 .build_metadata*

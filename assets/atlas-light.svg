@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" width="880" height="360"
+     font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif"
+     role="img" aria-label="RefusalScope architecture: a trace is normalized, run through seven offline signal extractors that each vote one label with evidence, accumulated per-label, then decided by an offline rule engine into a verdict with a confidence score and an audit trail">
+  <defs>
+    <marker id="ah-l" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#B9B9C2"/></marker>
+  </defs>
+  <rect x="0" y="0" width="880" height="360" fill="#F5F5F7"/>
+
+  <!-- offline boundary frame -->
+  <rect x="24" y="28" width="832" height="308" rx="18" fill="none" stroke="#DC2626" stroke-opacity="0.40" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="44" y="50" font-size="13" font-weight="600" fill="#A11717">Fully offline — no network, no model, no API key</text>
+
+  <!-- connectors -->
+  <g stroke="#C9C9D0" stroke-width="1.6" fill="none">
+    <line x1="194" y1="200" x2="244" y2="200" marker-end="url(#ah-l)"/>
+    <line x1="468" y1="200" x2="518" y2="200" marker-end="url(#ah-l)"/>
+    <line x1="742" y1="200" x2="792" y2="200" marker-end="url(#ah-l)"/>
+  </g>
+
+  <!-- Trace + normalize -->
+  <g>
+    <rect x="40" y="92" width="154" height="216" rx="15" fill="#0071E3" fill-opacity="0.10" stroke="#0071E3" stroke-width="1.5"/>
+    <text x="117" y="118" text-anchor="middle" font-size="15" font-weight="600" fill="#0A4F9E">Trace in</text>
+    <g font-size="11" fill="#0A4F9E">
+      <rect x="56" y="134" width="122" height="36" rx="9" fill="#0071E3" fill-opacity="0.10" stroke="#0071E3" stroke-width="1.1"/>
+      <text x="117" y="156" text-anchor="middle">bare string</text>
+      <rect x="56" y="176" width="122" height="36" rx="9" fill="#0071E3" fill-opacity="0.10" stroke="#0071E3" stroke-width="1.1"/>
+      <text x="117" y="198" text-anchor="middle">prompt + response</text>
+      <rect x="56" y="218" width="122" height="36" rx="9" fill="#0071E3" fill-opacity="0.10" stroke="#0071E3" stroke-width="1.1"/>
+      <text x="117" y="240" text-anchor="middle">OpenAI object</text>
+    </g>
+    <text x="117" y="280" text-anchor="middle" font-size="11.5" font-weight="600" fill="#0A4F9E">normalize</text>
+    <text x="117" y="296" text-anchor="middle" font-size="10.5" fill="#6E6E73">trace.py</text>
+  </g>
+
+  <!-- Signal extractors -->
+  <g>
+    <rect x="244" y="92" width="224" height="216" rx="15" fill="#5E5CE6" fill-opacity="0.10" stroke="#5E5CE6" stroke-width="1.6"/>
+    <text x="356" y="116" text-anchor="middle" font-size="15" font-weight="600" fill="#4B3FC4">7 signal extractors</text>
+    <text x="356" y="132" text-anchor="middle" font-size="10.5" fill="#6E6E73">signals.py — each votes 1 label + span</text>
+    <g font-size="10.5" fill="#4B3FC4">
+      <rect x="260" y="142" width="192" height="22" rx="7" fill="#5E5CE6" fill-opacity="0.10" stroke="#5E5CE6" stroke-width="1"/>
+      <text x="270" y="157">hard_refusal_lexicon</text>
+      <rect x="260" y="166" width="192" height="22" rx="7" fill="#5E5CE6" fill-opacity="0.10" stroke="#5E5CE6" stroke-width="1"/>
+      <text x="270" y="181">capability_denial</text>
+      <rect x="260" y="190" width="192" height="22" rx="7" fill="#5E5CE6" fill-opacity="0.10" stroke="#5E5CE6" stroke-width="1"/>
+      <text x="270" y="205">noncommittal_hedge · topic_narrowing</text>
+      <rect x="260" y="214" width="192" height="22" rx="7" fill="#5E5CE6" fill-opacity="0.10" stroke="#5E5CE6" stroke-width="1"/>
+      <text x="270" y="229">length_collapse · apology</text>
+      <rect x="260" y="238" width="192" height="22" rx="7" fill="#5E5CE6" fill-opacity="0.10" stroke="#5E5CE6" stroke-width="1"/>
+      <text x="270" y="253">safety_redirect</text>
+    </g>
+    <text x="356" y="282" text-anchor="middle" font-size="11" fill="#6E6E73">per-label evidence weight</text>
+    <text x="356" y="298" text-anchor="middle" font-size="11" font-weight="600" fill="#4B3FC4">+ exact phrase / span</text>
+  </g>
+
+  <!-- Rule engine -->
+  <g>
+    <rect x="518" y="92" width="224" height="216" rx="15" fill="#DC2626" fill-opacity="0.10" stroke="#DC2626" stroke-width="1.6"/>
+    <text x="630" y="116" text-anchor="middle" font-size="15" font-weight="700" fill="#A11717">Rule engine</text>
+    <text x="630" y="132" text-anchor="middle" font-size="10.5" fill="#6E6E73">classifier.py — priority decision</text>
+    <g font-size="11.5">
+      <rect x="534" y="142" width="192" height="34" rx="9" fill="#FFFFFF" fill-opacity="0.6" stroke="#DC2626" stroke-width="1.1"/>
+      <text x="546" y="163" fill="#5b1f1f"><tspan font-weight="700" fill="#A11717">1</tspan>  explicit hard_refusal wins</text>
+      <rect x="534" y="182" width="192" height="34" rx="9" fill="#FFFFFF" fill-opacity="0.6" stroke="#DC2626" stroke-width="1.1"/>
+      <text x="546" y="203" fill="#5b1f1f"><tspan font-weight="700" fill="#A11717">2</tspan>  else heavier of disguised/shaped</text>
+      <rect x="534" y="222" width="192" height="34" rx="9" fill="#FFFFFF" fill-opacity="0.6" stroke="#DC2626" stroke-width="1.1"/>
+      <text x="546" y="243" fill="#5b1f1f"><tspan font-weight="700" fill="#A11717">3</tspan>  ties lean disguised_refusal</text>
+      <rect x="534" y="262" width="192" height="34" rx="9" fill="#FFFFFF" fill-opacity="0.6" stroke="#DC2626" stroke-width="1.1"/>
+      <text x="546" y="283" fill="#5b1f1f"><tspan font-weight="700" fill="#A11717">4</tspan>  else answer · confidence saturates</text>
+    </g>
+  </g>
+
+  <!-- Verdict -->
+  <g>
+    <rect x="792" y="92" width="64" height="216" rx="15" fill="#10A37F" fill-opacity="0.08" stroke="#10A37F" stroke-width="1.5"/>
+    <text x="824" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#0B6B53" transform="rotate(90 824 200)">Verdict + audit trail</text>
+  </g>
+</svg>

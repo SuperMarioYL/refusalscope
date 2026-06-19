@@ -21,10 +21,24 @@ Eval dashboards measure latency, tokens, and "did the call succeed." None of the
 
 RefusalScope is the small, deterministic check for exactly that. `classify(trace)` returns one of four labels and, crucially, the evidence behind it — so you can trust it, override it, or gate CI on it. The classifier is **fully offline**: pure-Python string and structure heuristics, no network, no model, no key. An optional bring-your-own-key LLM judge exists only as an opt-in tie-breaker for low-confidence cases, and is **off by default**.
 
+## <img src="https://api.iconify.design/tabler:topology-star-3.svg?color=%23dc2626&width=24" height="22" align="absmiddle" alt=""> Architecture
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/atlas-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/atlas-light.svg">
+    <img src="./assets/atlas-light.svg" width="880" alt="A trace is normalized, run through seven offline signal extractors that each vote one label with the exact span, accumulated per label, then decided by an offline rule engine into a verdict with a confidence score and an audit trail">
+  </picture>
+</p>
+
+A trace — a bare response string, a `{prompt, response}` pair, or a raw OpenAI chat-completion object — is first **normalized** (`trace.py`) into one shape. It then runs through **seven signal extractors** (`signals.py`); each is a pure-Python heuristic that votes for exactly one label and attaches the exact phrase or span that triggered it. The **rule engine** (`classifier.py`) accumulates evidence weight per label and decides by priority — an explicit `hard_refusal` short-circuits, otherwise the heavier of `disguised_refusal` / `shaped` wins (ties lean to the more dangerous `disguised_refusal`), else `answer` — emitting a verdict with a saturating confidence score and the full audit trail. Everything inside the dashed boundary runs offline: no network, no model, no API key.
+
 ## Table of contents
 
+- [Architecture](#architecture)
 - [Install](#install)
 - [Quickstart](#quickstart)
+- [Demo](#demo)
 - [The four verdicts](#the-four-verdicts)
 - [What you'll see](#what-youll-see)
 - [Input formats](#input-formats)
@@ -65,6 +79,12 @@ RefusalScope flags it `DISGUISED_REFUSAL` and shows you why. Want to see the con
 ```bash
 python examples/disguised_refusal_demo.py
 ```
+
+## <img src="https://api.iconify.design/tabler:photo.svg?color=%23dc2626&width=24" height="22" align="absmiddle" alt=""> Demo
+
+`classify` a disguised refusal, then `probe` an endpoint for a red/green regression run — the whole happy path in one terminal:
+
+![RefusalScope demo](assets/demo.gif)
 
 ## The four verdicts
 
