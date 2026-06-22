@@ -52,7 +52,13 @@ def _content_to_text(content: Any) -> str:
 
 
 def _extract_openai_response_text(obj: dict[str, Any]) -> str | None:
-    """Pull assistant text from an OpenAI chat-completion response object."""
+    """Pull assistant text from an OpenAI chat-completion response object.
+
+    Falls back to ``message.refusal`` when ``message.content`` is null/empty:
+    OpenAI/gpt-4o structured declines (and content-filtered completions) put the
+    decline text in the dedicated ``refusal`` field with ``content=null``, so a
+    content-only reader would see an empty response and mis-score it as ANSWER.
+    """
     choices = obj.get("choices")
     if not isinstance(choices, list) or not choices:
         return None
@@ -62,7 +68,14 @@ def _extract_openai_response_text(obj: dict[str, Any]) -> str | None:
     # chat-completions: choices[].message.content
     message = first.get("message")
     if isinstance(message, dict):
-        return _content_to_text(message.get("content"))
+        text = _content_to_text(message.get("content"))
+        if text.strip():
+            return text
+        # content is null/empty — fall back to the structured refusal field.
+        refusal = message.get("refusal")
+        if refusal:
+            return _content_to_text(refusal)
+        return text
     # legacy completions: choices[].text
     if "text" in first:
         return str(first["text"])

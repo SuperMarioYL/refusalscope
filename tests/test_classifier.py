@@ -200,6 +200,36 @@ def test_llm_judge_is_off_by_default_and_opt_in():
         assert judged.label == VerdictLabel.disguised_refusal
 
 
+def test_no_evidence_answer_is_above_low_confidence():
+    # A clean answer with no refusal/shaping evidence is the most certain ANSWER
+    # we can emit — it must read above LOW_CONFIDENCE so an opt-in llm_judge is
+    # NOT consulted on every clean answer (fix-answer-confidence-below-low).
+    trace = normalize(
+        {
+            "prompt": "List three causes of a slow database query.",
+            "response": (
+                "Missing indexes on filtered columns, full table scans instead "
+                "of key lookups, and lock contention from concurrent writes. "
+                "Read the query plan and watch lock wait statistics to confirm."
+            ),
+        }
+    )
+    verdict = classify(trace)
+    assert verdict.label == VerdictLabel.answer
+    assert verdict.confidence > LOW_CONFIDENCE
+
+    # ...therefore a supplied judge is never invoked for a clean answer.
+    calls = {"n": 0}
+
+    def judge(_trace, _verdict):
+        calls["n"] += 1
+        return VerdictLabel.disguised_refusal
+
+    judged = classify(trace, llm_judge=judge)
+    assert calls["n"] == 0
+    assert judged.label == VerdictLabel.answer
+
+
 def test_probe_id_threads_through():
     trace = normalize({"prompt": "x", "response": "y"})
     verdict = classify(trace, probe_id="probe_42")
