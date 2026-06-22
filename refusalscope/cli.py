@@ -19,8 +19,14 @@ from rich.console import Console
 
 from . import __version__
 from .classifier import classify
+from .drift import diff_files, report_to_dict
 from .probes import load_pack, run_pack
-from .report import render_probe_table, render_verdict, verdict_to_dict
+from .report import (
+    render_drift_report,
+    render_probe_table,
+    render_verdict,
+    verdict_to_dict,
+)
 from .trace import load_trace
 
 console = Console()
@@ -118,6 +124,32 @@ def probe_cmd(
         1 for r in rows if (r["verdict"] and r["verdict"].is_refusal()) or r["error"]
     )
     if flagged:
+        sys.exit(2)
+
+
+@main.command("diff")
+@click.argument("old_json", type=click.Path(exists=True, dir_okay=False))
+@click.argument("new_json", type=click.Path(exists=True, dir_okay=False))
+@click.option("--json", "as_json", is_flag=True, help="Emit the drift report as JSON.")
+def diff_cmd(old_json: str, new_json: str, as_json: bool) -> None:
+    """Compare two ``probe --json`` verdict files and report refusal-scope drift.
+
+    Reports, per probe id, what NEWLY refuses (answer → refusal/shaping) and what
+    NEWLY answers (refusal/shaping → answer) across OLD_JSON and NEW_JSON. Pure
+    local diff over the verdict JSON — no network, no stored history.
+    """
+    try:
+        report = diff_files(old_json, new_json)
+    except (ValueError, OSError, json.JSONDecodeError) as exc:
+        raise click.ClickException(f"Could not diff snapshots: {exc}") from exc
+
+    if as_json:
+        click.echo(json.dumps(report_to_dict(report), indent=2))
+    else:
+        render_drift_report(report, console=console)
+
+    # Non-zero exit when the model newly refuses anything, for CI drift gating.
+    if report.newly_refuses:
         sys.exit(2)
 
 

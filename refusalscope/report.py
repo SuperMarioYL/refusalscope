@@ -13,6 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from .drift import DriftReport
 from .model import Verdict, VerdictLabel
 
 # Label -> (rich color, glyph, human label). Refusals/shaping are red/amber.
@@ -113,6 +114,67 @@ def render_probe_table(
     summary.append(f"{flagged} flagged", style="red" if flagged else "green")
     summary.append(f"  {total - flagged} clean", style="green")
     console.print(summary)
+
+
+# Drift kind -> (style, glyph, header label).
+_DRIFT_KIND_STYLE: dict[str, tuple[str, str]] = {
+    "newly_refuses": ("bold red", "NEWLY REFUSES"),
+    "newly_answers": ("green", "NEWLY ANSWERS"),
+    "changed_category": ("yellow", "CHANGED CATEGORY"),
+}
+
+
+def _delta_text(delta: float | None) -> Text:
+    if delta is None:
+        return Text("-", style="dim")
+    sign = "+" if delta > 0 else ""
+    return Text(f"{sign}{delta:.2f}", style="dim")
+
+
+def render_drift_report(report: DriftReport, *, console: Console | None = None) -> None:
+    """Render a :class:`DriftReport` as a rich table of changed probes."""
+    console = console or Console()
+    table = Table(title="RefusalScope — refusal-scope drift", show_lines=False)
+    table.add_column("probe", style="cyan", no_wrap=True)
+    table.add_column("change", no_wrap=True)
+    table.add_column("transition", no_wrap=True)
+    table.add_column("Δconf", justify="right", no_wrap=True)
+    table.add_column("ask", overflow="fold")
+
+    changed = report.changed
+    # Most actionable first: new refusals, then new answers, then re-categorized.
+    order = {"newly_refuses": 0, "newly_answers": 1, "changed_category": 2}
+    for d in sorted(changed, key=lambda x: (order.get(x.kind, 9), x.probe_id)):
+        style, name = _DRIFT_KIND_STYLE.get(d.kind, ("default", d.kind.upper()))
+        table.add_row(
+            d.probe_id,
+            Text(name, style=style),
+            d.transition,
+            _delta_text(d.confidence_delta),
+            d.prompt,
+        )
+
+    console.print(table)
+
+    summary = Text()
+    summary.append(f"{len(report.newly_refuses)} newly-refuses", style="red")
+    summary.append("  ")
+    summary.append(f"{len(report.newly_answers)} newly-answers", style="green")
+    summary.append("  ")
+    summary.append(f"{len(report.changed_category)} re-categorized", style="yellow")
+    if not changed:
+        summary = Text("no refusal-scope drift across the two snapshots", style="green")
+    console.print(summary)
+
+    if report.only_in_old or report.only_in_new:
+        note = Text()
+        if report.only_in_old:
+            note.append(
+                f"only in old: {', '.join(report.only_in_old)}  ", style="dim"
+            )
+        if report.only_in_new:
+            note.append(f"only in new: {', '.join(report.only_in_new)}", style="dim")
+        console.print(note)
 
 
 def verdict_to_dict(verdict: Verdict) -> dict[str, Any]:

@@ -31,7 +31,7 @@ RefusalScope is the small, deterministic check for exactly that. `classify(trace
   </picture>
 </p>
 
-A trace — a bare response string, a `{prompt, response}` pair, or a raw OpenAI chat-completion object — is first **normalized** (`trace.py`) into one shape. It then runs through **seven signal extractors** (`signals.py`); each is a pure-Python heuristic that votes for exactly one label and attaches the exact phrase or span that triggered it. The **rule engine** (`classifier.py`) accumulates evidence weight per label and decides by priority — an explicit `hard_refusal` short-circuits, otherwise the heavier of `disguised_refusal` / `shaped` wins (ties lean to the more dangerous `disguised_refusal`), else `answer` — emitting a verdict with a saturating confidence score and the full audit trail. Everything inside the dashed boundary runs offline: no network, no model, no API key.
+A trace — a bare response string, a `{prompt, response}` pair, or a raw OpenAI chat-completion object — is first **normalized** (`trace.py`) into one shape. It then runs through **eight signal extractors** (`signals.py`); each is a pure-Python heuristic that votes for exactly one label and attaches the exact phrase or span that triggered it. The **rule engine** (`classifier.py`) accumulates evidence weight per label and decides by priority — an explicit `hard_refusal` short-circuits, otherwise the heavier of `disguised_refusal` / `shaped` wins (ties lean to the more dangerous `disguised_refusal`), else `answer` — emitting a verdict with a saturating confidence score and the full audit trail. Everything inside the dashed boundary runs offline: no network, no model, no API key.
 
 ## Table of contents
 
@@ -141,10 +141,23 @@ refusalscope probe \
 
 > Unlike `classify`, `probe` makes outbound network calls to the endpoint you point it at. That is the only part of RefusalScope that touches the network.
 
+## Diff two runs
+
+Re-run a pack over time (across model releases, prompt-pack edits, or guardrail changes) and ask *did the refusal scope drift?* `diff` compares two `probe --json` snapshots, matched by `probe_id`, and reports per probe what **newly refuses** (answer → refusal/shaping), what **newly answers** (refusal/shaping → answer), and what changed category — with the label transition and confidence delta:
+
+```bash
+refusalscope probe ... --json before.json
+# …upgrade the model / edit the guardrail…
+refusalscope probe ... --json after.json
+refusalscope diff before.json after.json        # rich table; add --json for CI
+```
+
+It's a pure local diff over the verdict JSON `probe` already emits — no network, no stored history. Exits non-zero when anything newly refuses.
+
 ## How it works
 
 ```
-trace ─▶ normalize ─▶ 7 signal extractors ─▶ per-label evidence ─▶ rule engine ─▶ Verdict
+trace ─▶ normalize ─▶ 8 signal extractors ─▶ per-label evidence ─▶ rule engine ─▶ Verdict
          (trace.py)     (signals.py)           weights              (classifier.py)   + audit trail
 ```
 
@@ -153,6 +166,7 @@ Each extractor is a pure-Python heuristic that votes for exactly one label and a
 | Signal | Votes for | Fires when… |
 | --- | --- | --- |
 | `hard_refusal_lexicon` | `hard_refusal` | explicit refusal phrasing ("I can't help with that") |
+| `content_filter` | `hard_refusal` | provider stopped the completion with `finish_reason="content_filter"` |
 | `capability_denial` | `disguised_refusal` | "as an AI I can't…" capability-denial boilerplate |
 | `noncommittal_hedge` | `disguised_refusal` | hedging that talks around the ask ("it's important to note…") |
 | `topic_narrowing` | `disguised_refusal` | response covers <30% of the prompt's content words |
@@ -202,6 +216,7 @@ Both commands exit non-zero when they flag something, so they drop straight into
 - [x] **m1** — data model + `classify` with the seven offline signals and the rule engine.
 - [x] **m2** — `probe` against OpenAI-compatible endpoints + red/green table + JSON sidecar.
 - [x] **m3** — explainable per-signal evidence, confidence scoring, CI exit codes, opt-in judge hook.
+- [x] **v0.2** — `diff` two runs for refusal-scope drift; structured `message.refusal` / `content_filter` handling; trustworthier confidence.
 - [ ] **Future** — richer probe packs, calibration against labeled corpora, a built-in (still opt-in) judge.
 
 ## Contributing
