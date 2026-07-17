@@ -19,7 +19,7 @@ from rich.console import Console
 
 from . import __version__
 from .classifier import classify
-from .drift import diff_files, report_to_dict
+from .drift import diff_files, diff_snapshots, load_snapshot, report_to_dict
 from .probes import load_pack, run_pack
 from .report import (
     render_drift_report,
@@ -30,6 +30,26 @@ from .report import (
 from .trace import load_trace
 
 console = Console()
+
+
+def _probe_rows_json(rows: list[dict]) -> list[dict]:
+    """The machine-readable view of a ``run_pack`` result list.
+
+    Same shape ``probe --json`` writes and ``refusalscope diff`` /
+    ``probe --compare-baseline`` consume: ``{probe_id, prompt, category, error,
+    verdict: verdict_to_dict(v) | None}``. Factored so the JSON output and the
+    in-process baseline diff stay identical.
+    """
+    return [
+        {
+            "probe_id": r["probe_id"],
+            "prompt": r["prompt"],
+            "category": r["category"],
+            "error": r["error"],
+            "verdict": verdict_to_dict(r["verdict"]) if r["verdict"] else None,
+        }
+        for r in rows
+    ]
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -84,12 +104,20 @@ def classify_cmd(trace_path: str, as_json: bool, show_response: bool) -> None:
     help="API key (defaults to $OPENAI_API_KEY if set).",
 )
 @click.option("--json", "json_out", type=click.Path(dir_okay=False), default=None, help="Write machine-readable verdicts to this path.")
+@click.option(
+    "--compare-baseline",
+    "baseline_path",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="After running, diff the fresh verdicts against this stored `probe --json` baseline and report refusal-scope drift (exits 2 on newly-refuses).",
+)
 def probe_cmd(
     endpoint: str,
     model: str,
     pack_path: str,
     api_key: str | None,
     json_out: str | None,
+    baseline_path: str | None,
 ) -> None:
     """Run a probe PACK against an OpenAI-compatible endpoint and report red/green."""
     try:
@@ -106,24 +134,32 @@ def probe_cmd(
     render_probe_table(rows, console=console)
 
     if json_out:
-        out = [
-            {
-                "probe_id": r["probe_id"],
-                "prompt": r["prompt"],
-                "category": r["category"],
-                "error": r["error"],
-                "verdict": verdict_to_dict(r["verdict"]) if r["verdict"] else None,
-            }
-            for r in rows
-        ]
+        out = _probe_rows_json(rows)
         with open(json_out, "w", encoding="utf-8") as fh:
             json.dump(out, fh, indent=2)
         console.print(f"[dim]Wrote verdicts to {json_out}[/dim]")
 
+    # Run + gate on drift in one command: diff the fresh verdicts against a
+    # stored baseline and report what newly refuses / newly answers. Pure local
+    # diff over the same verdict JSON `--json` emits — no new network path.
+    newly_refuses: list = []
+    if baseline_path:
+        try:
+            baseline = load_snapshot(baseline_path)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise click.ClickException(
+                f"Could not load baseline '{baseline_path}': {exc}"
+            ) from exc
+        report = diff_snapshots(baseline, _probe_rows_json(rows))
+        render_drift_report(report, console=console)
+        newly_refuses = report.newly_refuses
+
     flagged = sum(
         1 for r in rows if (r["verdict"] and r["verdict"].is_refusal()) or r["error"]
     )
-    if flagged:
+    # Non-zero when the run flagged a refusal/error OR the model newly refused
+    # anything vs the baseline (the same gate `refusalscope diff` uses).
+    if flagged or newly_refuses:
         sys.exit(2)
 
 

@@ -121,22 +121,49 @@ def normalize(data: Any) -> Trace:
             f"Cannot normalize a {type(data).__name__}; expected str or object."
         )
 
-    # Combined envelope: {"request": {...}, "response": {...}}.
+    # Combined envelope: {"request": {...}, "response": {...}}. Also accepts
+    # {"prompt": ..., "response": <openai obj>} — the natural "here is my prompt
+    # plus the response object I got back" shape — by falling back to the
+    # top-level prompt aliases when no "request" is supplied. Without this
+    # fallback the envelope branch (which recovers the prompt only from
+    # data["request"]) would silently drop the prompt to "" and skip the
+    # topic_narrowing / length_collapse signals.
     if "response" in data and isinstance(data["response"], dict):
         req = data.get("request")
         resp_obj = data["response"]
         prompt = ""
         messages = None
+        from_envelope_request = False
         if isinstance(req, dict) and _is_openai_request(req):
             messages = req["messages"]
             prompt = _last_user_message(messages)
+            from_envelope_request = True
         elif isinstance(req, str):
             prompt = req
+            from_envelope_request = True
+        else:
+            # No "request" supplied — recover the prompt from a top-level
+            # alias (mirroring the Shape-2 prompt-key list) so the prompt is
+            # never silently dropped.
+            for k in ("prompt", "ask", "input", "question"):
+                if k in data and data[k] is not None:
+                    v = data[k]
+                    if isinstance(v, list):
+                        prompt = _last_user_message(v)
+                    elif isinstance(v, str):
+                        prompt = v
+                    else:
+                        prompt = _content_to_text(v)
+                    break
         resp_text = _extract_openai_response_text(resp_obj)
         if resp_text is None:
             raise ValueError("Envelope 'response' object had no extractable text.")
         meta = _meta_from_openai_response(resp_obj)
-        meta["source_shape"] = "request_response_envelope"
+        meta["source_shape"] = (
+            "request_response_envelope"
+            if from_envelope_request
+            else "prompt_response_pair"
+        )
         return Trace(prompt=prompt, response=resp_text, messages=messages, meta=meta)
 
     # Shape 3: a raw OpenAI chat-completion response object.

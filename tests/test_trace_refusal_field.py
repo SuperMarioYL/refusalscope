@@ -97,3 +97,48 @@ def test_normal_content_still_wins_over_refusal_field():
     }
     trace = normalize(obj)
     assert trace.response == "Here is the answer you asked for."
+
+
+# --------------------------------------------------------------------------- #
+# v0.3.0 — envelope path must not drop the prompt
+# --------------------------------------------------------------------------- #
+
+
+def test_prompt_recovered_when_response_is_openai_object():
+    # The natural "here is my prompt + the response object I got back" shape.
+    # Before v0.3 the envelope branch (entered whenever "response" is a dict)
+    # recovered the prompt only from data["request"], so the prompt was silently
+    # dropped to "" and topic_narrowing/length_collapse could not fire.
+    obj = {
+        "object": "chat.completion",
+        "model": "gpt-4o",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "A genuine answer about indexes."},
+                "finish_reason": "stop",
+            }
+        ],
+    }
+    trace = normalize({"prompt": "List three causes of slow queries and how to diagnose each.", "response": obj})
+    assert trace.prompt == "List three causes of slow queries and how to diagnose each."
+    assert trace.response == "A genuine answer about indexes."
+    assert trace.meta["finish_reason"] == "stop"
+    # Honest about the shape: no request was supplied, so this is a pair.
+    assert trace.meta["source_shape"] == "prompt_response_pair"
+
+
+def test_request_response_envelope_still_uses_request_prompt():
+    # The real {request, response} envelope path is unchanged: the prompt comes
+    # from the bundled request, and source_shape stays request_response_envelope.
+    envelope = {
+        "request": {"messages": [{"role": "user", "content": "Reverse a linked list"}]},
+        "response": {
+            "object": "chat.completion",
+            "choices": [{"message": {"role": "assistant", "content": "Here is the code…"}}],
+        },
+    }
+    trace = normalize(envelope)
+    assert trace.prompt == "Reverse a linked list"
+    assert trace.messages is not None
+    assert trace.meta["source_shape"] == "request_response_envelope"

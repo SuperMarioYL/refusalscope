@@ -6,11 +6,16 @@ Also covers the built-in pack parsing and the ingest shapes that feed probes.
 
 from __future__ import annotations
 
+import json
 import os
 
 import pytest
+from click.testing import CliRunner
 
-from refusalscope.model import VerdictLabel
+from refusalscope import cli as cli_mod
+from refusalscope.cli import _probe_rows_json
+from refusalscope.drift import diff_snapshots
+from refusalscope.model import Verdict, VerdictLabel
 from refusalscope.probes import (
     Probe,
     ProbePack,
@@ -152,3 +157,89 @@ def test_builtin_pack_runs_offline_against_fake_endpoint():
     assert len(rows) == len(pack.probes)
     assert all(r["error"] is None for r in rows)
     assert all(r["verdict"] is not None for r in rows)
+
+
+# --------------------------------------------------------------------------- #
+# v0.3.0 — probe --compare-baseline (run + gate on drift in one command)
+# --------------------------------------------------------------------------- #
+
+
+def _row(probe_id: str, label: VerdictLabel, prompt: str = "ask") -> dict:
+    return {
+        "probe_id": probe_id,
+        "prompt": prompt,
+        "category": "test",
+        "error": None,
+        "verdict": Verdict(label=label, confidence=0.7, probe_id=probe_id),
+    }
+
+
+def test_probe_rows_json_round_trips_for_diff():
+    # The cli helper produces the exact shape `refusalscope diff` /
+    # `probe --compare-baseline` consume, so an in-process diff works.
+    rows = [_row("p1", VerdictLabel.disguised_refusal)]
+    baseline = [{"probe_id": "p1", "verdict": {"label": "answer", "confidence": 0.66}}]
+    report = diff_snapshots(baseline, _probe_rows_json(rows))
+    assert {d.probe_id for d in report.newly_refuses} == {"p1"}
+
+
+def test_probe_compare_baseline_flags_newly_refuses(tmp_path, monkeypatch):
+    baseline_path = tmp_path / "baseline.json"
+    baseline_path.write_text(
+        json.dumps(
+            [{"probe_id": "p1", "prompt": "ask", "category": "c", "error": None,
+              "verdict": {"label": "answer", "confidence": 0.66, "probe_id": "p1", "signals": []}}]
+        ),
+        encoding="utf-8",
+    )
+
+    # Monkeypatch run_pack so no network is touched: the fresh run newly refuses p1.
+    monkeypatch.setattr(
+        cli_mod,
+        "run_pack",
+        lambda pack, endpoint, model, api_key=None, caller=None: [_row("p1", VerdictLabel.disguised_refusal)],
+    )
+
+    result = CliRunner().invoke(
+        cli_mod.main,
+        [
+            "probe",
+            "--endpoint", "http://fake/v1",
+            "--model", "fake",
+            "--pack", BUILTIN,
+            "--compare-baseline", str(baseline_path),
+        ],
+    )
+    # Exit 2: the model newly refused something vs the baseline.
+    assert result.exit_code == 2
+    assert "NEWLY REFUSES" in result.output or "newly-refuses" in result.output
+
+
+def test_probe_compare_baseline_clean_when_no_drift(tmp_path, monkeypatch):
+    baseline_path = tmp_path / "baseline.json"
+    baseline_path.write_text(
+        json.dumps(
+            [{"probe_id": "p1", "prompt": "ask", "category": "c", "error": None,
+              "verdict": {"label": "answer", "confidence": 0.66, "probe_id": "p1", "signals": []}}]
+        ),
+        encoding="utf-8",
+    )
+
+    # Fresh run is also a clean answer — nothing newly refuses.
+    monkeypatch.setattr(
+        cli_mod,
+        "run_pack",
+        lambda pack, endpoint, model, api_key=None, caller=None: [_row("p1", VerdictLabel.answer)],
+    )
+
+    result = CliRunner().invoke(
+        cli_mod.main,
+        [
+            "probe",
+            "--endpoint", "http://fake/v1",
+            "--model", "fake",
+            "--pack", BUILTIN,
+            "--compare-baseline", str(baseline_path),
+        ],
+    )
+    assert result.exit_code == 0
