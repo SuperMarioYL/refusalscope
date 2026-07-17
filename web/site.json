@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "name": "refusalscope",
+  "github": "https://github.com/SuperMarioYL/refusalscope",
+  "host": "refusalscope.lei6393.com",
+  "lang": { "primary": "zh", "toggle": true },
+  "accent": ["#DC2626"],
+  "hero": {
+    "eyebrow": {
+      "zh": "真回答不再误判拒答 · 一条命令卡基线漂移 · 全程离线 · 无需 API key",
+      "en": "Genuine answers no longer flagged as refusals · One-command baseline-drift gate · Fully offline · No API key"
+    },
+    "headline": {
+      "zh": "模型说「好问题！」却不回答你的诉求\n给它一个诚实的判定，真回答不再被误标红",
+      "en": "The model says \"great question!\" and never answers your ask\n— give it an honest verdict where a real answer stops being flagged red"
+    },
+    "sub": {
+      "zh": "托管 LLM 的响应读起来乐于助人，可观测性日志里却只记下一个干净的 200 OK。refusalscope 把一次响应判为 answer / hard_refusal / disguised_refusal / shaped 四类，附上让它露馅的确切片段和逐信号审计。v0.3.0 把只带一句 hedge 的实质回答降回 answer（不再误标红）、恢复 {prompt, response} 包里的 prompt、再用 probe --compare-baseline 一条 CI 命令跑完探针并卡住相对基线的漂移。",
+      "en": "A hosted LLM's response reads as helpful, yet your observability log only records a clean 200 OK. refusalscope classifies a response as answer / hard_refusal / disguised_refusal / shaped, with the exact phrase that gave it away and a per-signal audit trail. v0.3.0 downgrades a substantive answer with a single hedge back to answer (no more false red), recovers the prompt inside a {prompt, response} envelope, and runs the pack + gates on baseline drift in one CI command via probe --compare-baseline."
+    },
+    "command": "refusalscope classify trace.json",
+    "cta": { "zh": "开始使用", "en": "Get started" },
+    "ctaGithub": { "zh": "在 GitHub 查看", "en": "View on GitHub" }
+  },
+  "advantages": [
+    {
+      "title": { "zh": "真回答不再被误标红", "en": "Genuine answers stop being flagged red" },
+      "body": {
+        "zh": "一段实质回答里只出现一句 hedge（「需要注意的是……」），旧版规则引擎就会判 disguised_refusal，在 CI 里直接退出 2——恰好把好回答的形状判成了拒答。v0.3.0 的规则把低于置信阈值、又没有强拒答 tell 的弱 hedge 降回 answer：那只是装饰性的 hedge。真正的伪装拒答仍然判红，因为它的证据要么过了阈值，要么带着硬拒答 tell。",
+        "en": "A substantive answer carrying a single hedge (\"it's important to note …\") used to be labelled disguised_refusal and exit 2 in CI — a false positive on the exact shape of a good answer. v0.3.0's rule downgrades a borderline refusal below the confidence threshold with no strong refusal tell back to answer: the hedge was decorative. Real disguised refusals stay red because their evidence clears the threshold or carries a hard refusal tell."
+      },
+      "chips": [
+        "› 一句 hedge 不再误判",
+        "› 无强 tell 即降回 answer",
+        "› 真拒答仍判红"
+      ]
+    },
+    {
+      "title": { "zh": "一条 CI 命令卡住基线漂移", "en": "One CI command gates baseline drift" },
+      "body": {
+        "zh": "以前要卡拒答率漂移，得先跑 probe、存 JSON、再单独跑一次 diff——两次调用、一个中间文件。probe --compare-baseline baseline.json 现在一条命令跑完探针、渲染红绿表、再拿刚跑出的判定和存好的基线做 diff（新增拒答 / 新增回答 / 类别变更），有任何新增拒答即退出 2。无中间 JSON、无第二次调用、无新增网络路径。",
+        "en": "Gating refusal-rate drift used to mean running probe, saving JSON, then invoking diff separately — two calls and an intermediate file. probe --compare-baseline baseline.json now runs the pack, renders the red/green table, and immediately diffs the fresh verdicts against a stored baseline (newly-refuses / newly-answers / changed-category), exiting 2 when anything newly refuses. No intermediate JSON, no second invocation, no new network path."
+      },
+      "chips": [
+        "› 跑探针+卡漂移一条命令",
+        "› 新增拒答即退出 2",
+        "› 无中间 JSON 文件"
+      ]
+    },
+    {
+      "title": { "zh": "prompt 不再被悄悄丢掉", "en": "The prompt is no longer silently dropped" },
+      "body": {
+        "zh": "当你自然地传一个 {prompt, response: <openai 对象>} 进来时，旧版归一化分支只从 data[\"request\"] 里找 prompt，于是最常见的那种「这是我的问题 + 响应对象」形状把 prompt 丢成空串，跳过了 topic_narrowing / length_collapse 信号——这会让真正的伪装拒答被误判成 answer。v0.3.0 在没有 request 时回退到顶层 prompt 别名（prompt / ask / input / question），{request, response} 路径保持不变。",
+        "en": "When you naturally pass in a {prompt, response: <openai object>}, the old normalization branch recovered the prompt only from data[\"request\"], so the common \"here is my prompt + the response object\" shape dropped the prompt to an empty string and skipped topic_narrowing / length_collapse — which would let a real disguised refusal be mis-scored as answer. v0.3.0 falls back to the top-level prompt aliases (prompt / ask / input / question) when no request is supplied; the {request, response} path is unchanged."
+      },
+      "chips": [
+        "› 恢复 prompt 字段",
+        "› 不再漏判 topic/length",
+        "› 输入形状更自然"
+      ]
+    },
+    {
+      "title": { "zh": "四类判定加逐信号证据，全程离线", "en": "Four verdicts with per-signal evidence, fully offline" },
+      "body": {
+        "zh": "你的可观测性日志只会记一个 200 OK，分不清伪装拒答和真回答。classify(trace) 返回 answer / hard_refusal / disguised_refusal / shaped 四类，带饱和式置信度分数和完整审计轨迹——每条信号都附上触发它的确切措辞或片段。分类器纯 Python 字符串与结构启发式，无网络、无模型、无 key。可选的「自带 key 的 LLM 裁判」只在低置信度场景做 tie-breaker，默认关闭。",
+        "en": "Your observability log records a 200 OK and can't tell a disguised refusal from a real answer. classify(trace) returns one of answer / hard_refusal / disguised_refusal / shaped with a saturating confidence score and a full audit trail — every signal carries the exact span or phrase that triggered it. The classifier is pure Python string and structural heuristics: no network, no model, no key. An optional bring-your-own-key LLM judge is consulted only for low-confidence tie-breaks, off by default."
+      },
+      "chips": [
+        "› 四类判定带置信度",
+        "› 每条信号附确切片段",
+        "› 零网络零 key"
+      ]
+    }
+  ],
+  "scene": {
+    "kind": "hub-nodes",
+    "nodes": ["礼貌拒答", "200 OK 假绿", "版本间漂移", "误标真回答"]
+  },
+  "cta": {
+    "headline": {
+      "zh": "把一次响应变成可信赖的判定，并卡住它相对基线的漂移",
+      "en": "Turn a response into a verdict you can trust — and gate its drift against a baseline"
+    },
+    "sub": {
+      "zh": "开源、MIT、无付费墙。给 LLM 响应一个诚实的 answer-vs-refusal 判定这件事，永不收费。",
+      "en": "Open source, MIT, no paywall. The act of giving an LLM response an honest answer-vs-refusal verdict is never gated."
+    },
+    "button": { "zh": "在 GitHub 上开始", "en": "Get started on GitHub" }
+  },
+  "footer": {
+    "tag": {
+      "zh": "给 LLM 响应的离线 answer-vs-refusal 判定器与漂移门控",
+      "en": "The offline answer-vs-refusal verdict and drift gate for LLM responses"
+    }
+  }
+}
