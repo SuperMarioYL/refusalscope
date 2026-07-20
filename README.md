@@ -5,7 +5,7 @@
 <p align="center"><strong>English</strong> | <a href="./README.zh-CN.md">简体中文</a></p>
 
 <p align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="Apache License 2.0" /></a>
   <a href="https://github.com/SuperMarioYL/refusalscope/actions"><img src="https://img.shields.io/badge/CI-ruff%20%2B%20pytest-success.svg" alt="CI" /></a>
   <img src="https://img.shields.io/badge/python-3.12%2B-3776AB.svg?logo=python&logoColor=white" alt="Python 3.12+" />
   <img src="https://img.shields.io/badge/network-zero%20(classify)-2ea043.svg" alt="Offline" />
@@ -225,4 +225,4 @@ Issues and PRs welcome. The most useful contribution is a real trace RefusalScop
 
 ## License
 
-[MIT](./LICENSE) © supermario_leo.
+[Apache-2.0](./LICENSE) © supermario_leo.
