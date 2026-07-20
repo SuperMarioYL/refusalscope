@@ -7,14 +7,14 @@ name = "refusalscope"
 version = "0.3.0"
 description = "Detect when a hosted LLM silently refuses or shapes its answer."
 requires-python = ">=3.12"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "supermario_leo", email = "leo.stack@outlook.com" }]
 keywords = ["llm", "refusal", "guardrail", "observability", "eval", "shaping"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
+  "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development :: Quality Assurance",
 ]
