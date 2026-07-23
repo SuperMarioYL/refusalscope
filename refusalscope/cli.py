@@ -77,6 +77,13 @@ def classify_cmd(trace_path: str, as_json: bool, show_response: bool) -> None:
 
     if as_json:
         click.echo(json.dumps(verdict_to_dict(verdict), indent=2))
+        # Honor the same exit-2 CI contract as the rendered path: emit the
+        # machine-readable verdict first, then exit non-zero on a refusal/
+        # shaping so a pipeline gate consuming `--json` can act on it. Before
+        # this the `--json` branch early-returned before the is_refusal()
+        # check, so `classify --json` always exited 0 on a hard_refusal.
+        if verdict.is_refusal():
+            sys.exit(2)
         return
 
     render_verdict(verdict, console=console)
