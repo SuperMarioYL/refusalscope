@@ -121,6 +121,9 @@ _DRIFT_KIND_STYLE: dict[str, tuple[str, str]] = {
     "newly_refuses": ("bold red", "NEWLY REFUSES"),
     "newly_answers": ("green", "NEWLY ANSWERS"),
     "changed_category": ("yellow", "CHANGED CATEGORY"),
+    # A probe that errored on one side (verdict None) — surfaced red so an
+    # endpoint-down / timeout regression is not silently lost.
+    "errored": ("bold red", "ERRORED"),
 }
 
 

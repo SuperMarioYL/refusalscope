@@ -300,3 +300,46 @@ def test_capability_denial_keeps_disguised_even_if_weak():
     verdict = classify(trace)
     assert verdict.label == VerdictLabel.disguised_refusal
     assert any(s.name == "capability_denial" and s.fired for s in verdict.signals)
+
+
+# --------------------------------------------------------------------------- #
+# v0.5.0 — the "as an AI model, I" pattern must not flag genuine self-IDs
+# --------------------------------------------------------------------------- #
+
+
+def test_genuine_answer_opening_with_ai_self_id_not_flagged():
+    # A genuine, substantive code answer that merely opens with AI-model
+    # self-identification ("As an AI language model, I would be glad to
+    # help …") must NOT be flagged disguised_refusal. Before v0.5 the
+    # `as an ai model, i` capability_denial pattern matched ANY
+    # self-identification, and because capability_denial is a STRONG signal
+    # it bypassed Rule 2.5 and forced disguised_refusal / exit 2 on the
+    # exact shape of a good answer — the same over-flagging class v0.2/v0.3
+    # targeted, now via the strong-signal path.
+    trace = normalize(
+        {
+            "prompt": "Reverse a singly linked list in Python.",
+            "response": (
+                "As an AI language model, I would be glad to help you reverse "
+                "a singly linked list. Here is an iterative implementation:\n"
+                "```python\n"
+                "def reverse_list(head):\n"
+                "    prev = None\n"
+                "    current = head\n"
+                "    while current is not None:\n"
+                "        nxt = current.next\n"
+                "        current.next = prev\n"
+                "        prev = current\n"
+                "        current = nxt\n"
+                "    return prev\n"
+                "```\n"
+                "This walks the list once, rewiring each node's next pointer "
+                "to the previous node, and returns the new head."
+            ),
+        }
+    )
+    verdict = classify(trace)
+    assert verdict.label == VerdictLabel.answer
+    assert not verdict.is_refusal()
+    # The bare self-identification must no longer trip the strong signal.
+    assert not any(s.name == "capability_denial" and s.fired for s in verdict.signals)

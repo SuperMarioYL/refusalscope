@@ -205,7 +205,15 @@ def normalize(data: Any) -> Trace:
             "No response text found. Provide a bare string, an OpenAI "
             "chat-completion object, or a {prompt, response} pair."
         )
+    # When the response value is itself an OpenAI chat-completion object
+    # (passed via a response alias like completion/output/answer/reply/text),
+    # fold its provider metadata — notably choices[0].finish_reason — into
+    # meta, mirroring the envelope and raw-openai-response branches. Before
+    # this the alias branch dropped finish_reason, so signal_content_filter
+    # (which reads trace.meta["finish_reason"]) could never fire on this shape.
+    openai_meta: dict[str, Any] = {}
     if isinstance(response_val, dict):  # response is itself an OpenAI object
+        openai_meta = _meta_from_openai_response(response_val)
         rt = _extract_openai_response_text(response_val)
         response_val = rt if rt is not None else json.dumps(response_val)
 
@@ -214,6 +222,7 @@ def normalize(data: Any) -> Trace:
         for k, v in data.items()
         if k not in set(prompt_keys) | set(response_keys)
     }
+    meta.update(openai_meta)
     meta["source_shape"] = "prompt_response_pair"
     messages = data["messages"] if isinstance(data.get("messages"), list) else None
     return Trace(

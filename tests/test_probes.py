@@ -243,3 +243,41 @@ def test_probe_compare_baseline_clean_when_no_drift(tmp_path, monkeypatch):
         ],
     )
     assert result.exit_code == 0
+
+
+# --------------------------------------------------------------------------- #
+# v0.5.0 — probe --compare-baseline must catch a malformed (non-list) baseline
+# --------------------------------------------------------------------------- #
+
+
+def test_probe_compare_baseline_non_list_surfaces_clean_error(tmp_path, monkeypatch):
+    # A valid-JSON-but-non-list baseline (e.g. a dict) must surface a clean
+    # ClickException, not an uncaught ValueError traceback. Before v0.5 the
+    # try/except in `probe --compare-baseline` wrapped only load_snapshot, so
+    # diff_snapshots raised an uncaught ValueError (exit 1 + traceback) —
+    # inconsistent with the sibling `diff` command which handles it cleanly.
+    baseline_path = tmp_path / "baseline.json"
+    baseline_path.write_text(json.dumps({"not": "a list"}), encoding="utf-8")
+
+    # Monkeypatch run_pack so no network is touched: the fresh run is clean.
+    monkeypatch.setattr(
+        cli_mod,
+        "run_pack",
+        lambda pack, endpoint, model, api_key=None, caller=None: [_row("p1", VerdictLabel.answer)],
+    )
+
+    result = CliRunner().invoke(
+        cli_mod.main,
+        [
+            "probe",
+            "--endpoint", "http://fake/v1",
+            "--model", "fake",
+            "--pack", BUILTIN,
+            "--compare-baseline", str(baseline_path),
+        ],
+    )
+    # Clean ClickException (exit 1, "Error: …" message), NOT an uncaught
+    # ValueError (which would leave result.exception as a ValueError).
+    assert result.exit_code == 1
+    assert "Error" in result.output
+    assert not isinstance(result.exception, ValueError)

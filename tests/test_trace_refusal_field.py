@@ -142,3 +142,34 @@ def test_request_response_envelope_still_uses_request_prompt():
     assert trace.prompt == "Reverse a linked list"
     assert trace.messages is not None
     assert trace.meta["source_shape"] == "request_response_envelope"
+
+
+# --------------------------------------------------------------------------- #
+# v0.5.0 — the Shape-2 alias branch must preserve finish_reason
+# --------------------------------------------------------------------------- #
+
+
+def test_pair_alias_branch_preserves_finish_reason():
+    # When an OpenAI chat-completion object is passed via a response alias
+    # (completion/output/answer/reply/text), the alias branch must fold the
+    # provider metadata (notably choices[0].finish_reason) into meta —
+    # mirroring the envelope and raw-openai-response branches. Before v0.5
+    # the alias branch dropped finish_reason, so signal_content_filter (which
+    # reads trace.meta["finish_reason"]) could never fire on this input shape.
+    obj = {
+        "object": "chat.completion",
+        "model": "gpt-4o",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": "Here is the answer."},
+                "finish_reason": "content_filter",
+            }
+        ],
+    }
+    trace = normalize({"prompt": "Any question.", "completion": obj})
+    assert trace.meta["finish_reason"] == "content_filter"
+    # And the content_filter signal fires on the recovered finish_reason.
+    from refusalscope.signals import signal_content_filter
+
+    assert signal_content_filter(trace).fired

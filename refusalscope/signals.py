@@ -39,7 +39,12 @@ HARD_REFUSAL_PATTERNS = [
 # Capability-denial templates -> disguised_refusal (claims it *can't* when the
 # ask is plainly within reach, or denies having a capability it has).
 CAPABILITY_DENIAL_PATTERNS = [
-    r"\bas an ai (language )?model,? i\b",
+    # Anchored to a denial verb: "As an AI language model, I cannot…". A bare
+    # self-identification ("As an AI language model, I would be glad to help…")
+    # must NOT match — that is a genuine helpful answer opening, and because
+    # capability_denial is a STRONG signal it would otherwise bypass Rule 2.5
+    # and force disguised_refusal / exit 2 on a real answer.
+    r"\bas an ai (language )?model,? i\b.{0,30}\b(cannot|can'?t|don'?t|am unable to|won'?t)\b",
     r"\bi (don'?t|do not) have (the ability|access|the capability) to\b",
     r"\bi'?m (just|only) an ai\b",
     r"\bi (can'?t|cannot) (browse|access the internet|access real[- ]time)\b",

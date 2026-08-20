@@ -99,3 +99,39 @@ def test_diff_files_roundtrip(tmp_path):
     )
     report = diff_files(str(old_path), str(new_path))
     assert {d.probe_id for d in report.newly_refuses} == {"p1"}
+
+
+# --------------------------------------------------------------------------- #
+# v0.5.0 — errored probes must not be mislabeled as "newly answers"
+# --------------------------------------------------------------------------- #
+
+
+def _errored_row(probe_id: str, prompt: str = "ask") -> dict:
+    """A probe row whose run errored: verdict is null (no verdict)."""
+    return {
+        "probe_id": probe_id,
+        "prompt": prompt,
+        "category": "test",
+        "error": "ConnectionError: endpoint unreachable",
+        "verdict": None,
+    }
+
+
+def test_refusal_to_error_not_reported_as_newly_answers():
+    # An errored probe (verdict None, error set) in the new snapshot must NOT
+    # be reported as "newly_answers" — that would mask a CI drift regression
+    # (an endpoint going down mid-run reading as the model "newly answering").
+    # Before v0.5 _classify_kind treated verdict None as a non-refusal, so a
+    # hard_refusal→error transition was mislabeled newly_answers.
+    old = [_row("p1", "hard_refusal", 0.9)]
+    new = [_errored_row("p1")]
+    report = diff_snapshots(old, new)
+
+    # Must NOT be mislabeled as a "newly answers" improvement (nor newly refuses).
+    assert {d.probe_id for d in report.newly_answers} == set()
+    assert {d.probe_id for d in report.newly_refuses} == set()
+    # The refusal→error transition is surfaced as its own kind instead.
+    assert {d.probe_id for d in report.errored} == {"p1"}
+    assert report.diffs[0].kind == "errored"
+    # And it is reflected in the JSON view (not silently dropped).
+    assert report_to_dict(report)["errored"][0]["probe_id"] == "p1"

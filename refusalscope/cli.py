@@ -153,11 +153,11 @@ def probe_cmd(
     if baseline_path:
         try:
             baseline = load_snapshot(baseline_path)
-        except (OSError, json.JSONDecodeError) as exc:
+            report = diff_snapshots(baseline, _probe_rows_json(rows))
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
             raise click.ClickException(
                 f"Could not load baseline '{baseline_path}': {exc}"
             ) from exc
-        report = diff_snapshots(baseline, _probe_rows_json(rows))
         render_drift_report(report, console=console)
         newly_refuses = report.newly_refuses
 

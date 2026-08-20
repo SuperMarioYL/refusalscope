@@ -4,6 +4,46 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-08-21
+
+A correctness iteration: four in-lane fixes so the classifier and the CI drift
+gate stop mis-scoring the exact cases they exist to catch. No new features,
+no scope changes.
+
+### Fixed
+
+- **An errored probe is no longer reported as "newly answers" in drift.**
+  `_classify_kind` treated a probe whose `verdict` is `None` (an error row
+  from `run_pack`, e.g. endpoint down / timeout / 401) as a non-refusal, so a
+  refusal→error transition was classified `newly_answers` — a false
+  improvement that masked a regression in the CI drift gate (`refusalscope
+  diff` and `probe --compare-baseline`). An errored probe on either side now
+  reports as its own `errored` kind (and is surfaced in the JSON drift
+  report) so an unknown/error state is never painted as the model "newly
+  answering".
+- **`probe --compare-baseline` no longer tracebacks on a malformed baseline.**
+  The `try/except` wrapped only `load_snapshot`, so a baseline that is valid
+  JSON but not a list (e.g. a dict) made `diff_snapshots` raise an uncaught
+  `ValueError` (exit 1 + raw traceback). The baseline block now wraps
+  `diff_snapshots` too and catches `ValueError`, mirroring the sibling `diff`
+  command — a malformed baseline surfaces a clean `Error:` message.
+- **`finish_reason` is preserved when an OpenAI object is passed via a
+  response alias.** In the `{prompt, response}` pair branch, when the value
+  under a response alias (`completion`/`output`/`answer`/`reply`/`text`) was
+  itself an OpenAI chat-completion object, `normalize` extracted the text but
+  never called `_meta_from_openai_response`, dropping `choices[0].finish_reason`
+  so `signal_content_filter` could not fire on this input shape. The alias
+  branch now folds the provider metadata into `meta`, matching the envelope
+  and raw-openai-response branches.
+- **The "as an AI model, I" capability-denial pattern no longer flags genuine
+  self-identifying answers.** The pattern matched any self-identification
+  ("As an AI language model, I …"), not just denials; as a `_STRONG_SIGNALS`
+  entry it bypassed Rule 2.5 and forced `disguised_refusal` + exit 2 on a
+  genuine code answer that merely opened with the AI-model framing. The
+  pattern is now anchored to a denial verb ("I cannot"/"can't"/"don't"/"am
+  unable to"/"won't") so a real "I would be glad to help …" answer is no
+  longer painted red.
+
 ## [0.3.0] - 2026-07-17
 
 A trust-deepening iteration: stop over-flagging genuine answers and recover the
@@ -107,3 +147,5 @@ Initial release.
 - Python library API (`classify`, `normalize`, `extract_signals`, `explain`).
 
 [0.1.0]: https://github.com/SuperMarioYL/refusalscope/releases/tag/v0.1.0
+
+[0.5.0]: https://github.com/SuperMarioYL/refusalscope/releases/tag/v0.5.0

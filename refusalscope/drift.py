@@ -42,7 +42,11 @@ class ProbeDiff:
     new_label: str | None
     old_confidence: float | None
     new_confidence: float | None
-    kind: str  # newly_refuses | newly_answers | changed_category | unchanged
+    # newly_refuses | newly_answers | changed_category | errored | unchanged.
+    # `errored` covers a transition where the probe errored on one side
+    # (verdict None) so its refusal state is unknown — it is reported as its
+    # own kind rather than mislabeled newly_answers / newly_refuses.
+    kind: str
     prompt: str = ""
 
     @property
@@ -75,6 +79,17 @@ class DriftReport:
     @property
     def changed_category(self) -> list[ProbeDiff]:
         return [d for d in self.diffs if d.kind == "changed_category"]
+
+    @property
+    def errored(self) -> list[ProbeDiff]:
+        """Probes that errored on one side, so their refusal state is unknown.
+
+        An errored probe (endpoint down, timeout, 401) carries ``verdict: None``
+        on that side, so its old/new refusal state cannot be compared. Surfaced
+        as its own kind so a refusal→error transition is not silently mislabeled
+        as ``newly_answers`` (a false improvement that would mask a regression).
+        """
+        return [d for d in self.diffs if d.kind == "errored"]
 
     @property
     def changed(self) -> list[ProbeDiff]:
@@ -126,6 +141,14 @@ def _confidence_of(row: dict[str, Any]) -> float | None:
 def _classify_kind(old_label: str | None, new_label: str | None) -> str:
     if old_label == new_label:
         return "unchanged"
+    # An errored probe (verdict None → label None) on either side means we do
+    # not know the refusal state for that run, so a refusal→error (or
+    # error→refusal) transition must NOT be reported as newly_answers /
+    # newly_refuses — that would mask a CI drift regression (an endpoint going
+    # down mid-run reading as the model "newly answering"). Report it as its
+    # own kind so the gate surfaces the unknown/error state instead.
+    if old_label is None or new_label is None:
+        return "errored"
     old_ref = _is_refusal(old_label)
     new_ref = _is_refusal(new_label)
     if not old_ref and new_ref:
@@ -197,6 +220,7 @@ def report_to_dict(report: DriftReport) -> dict[str, Any]:
         "newly_refuses": [_diff_dict(d) for d in report.newly_refuses],
         "newly_answers": [_diff_dict(d) for d in report.newly_answers],
         "changed_category": [_diff_dict(d) for d in report.changed_category],
+        "errored": [_diff_dict(d) for d in report.errored],
         "only_in_old": report.only_in_old,
         "only_in_new": report.only_in_new,
     }
