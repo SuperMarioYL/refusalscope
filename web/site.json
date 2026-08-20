@@ -1,11 +1,16 @@
 {
   "schema": 1,
-  "content_version": "v0.4.0",
+  "content_version": "v0.5.0",
   "name": "refusalscope",
   "github": "https://github.com/SuperMarioYL/refusalscope",
   "host": "refusalscope.lei6393.com",
-  "lang": { "primary": "zh", "toggle": true },
-  "accent": ["#DC2626"],
+  "lang": {
+    "primary": "zh",
+    "toggle": true
+  },
+  "accent": [
+    "#DC2626"
+  ],
   "hero": {
     "eyebrow": {
       "zh": "CI 门控不再漏放拒答 · 一条命令卡基线漂移 · 全程离线 · 无需 API key",
@@ -20,12 +25,21 @@
       "en": "A hosted LLM's response reads as helpful, yet your observability log only records a clean 200 OK. refusalscope classifies a response as answer / hard_refusal / disguised_refusal / shaped, with the exact phrase that gave it away and a per-signal audit trail. v0.4.0 fixes the machine-readable verdict your CI gate consumes: with `classify --json` the verdict came out fine but the exit code stayed 0 — a hard refusal slipped straight through the gate you built to catch it. `--json` now emits the verdict, then exits 2 on any refusal or shaping — the gate fails when it should, whether you read the verdict or just the exit code."
     },
     "command": "refusalscope classify trace.json",
-    "cta": { "zh": "开始使用", "en": "Get started" },
-    "ctaGithub": { "zh": "在 GitHub 查看", "en": "View on GitHub" }
+    "cta": {
+      "zh": "开始使用",
+      "en": "Get started"
+    },
+    "ctaGithub": {
+      "zh": "在 GitHub 查看",
+      "en": "View on GitHub"
+    }
   },
   "advantages": [
     {
-      "title": { "zh": "你为抓拒答而装的门控，真的会在拒答时失败", "en": "The gate you built to catch refusals actually fails on one" },
+      "title": {
+        "zh": "你为抓拒答而装的门控，真的会在拒答时失败",
+        "en": "The gate you built to catch refusals actually fails on one"
+      },
       "body": {
         "zh": "你把 `classify --json` 接进 CI，是因为机器可读的判定才是门控要消费的形状。可旧版在吐出 JSON 后、做退出码检查之前就提前返回了——一次硬拒答读得到 verdict、退出码却是 0，门控于是放过了它本该抓住的拒答。v0.4.0 先吐 JSON 判定，再对任何拒答或塑形退出 2：门控该红就红，无论你读不读 verdict、还是只看退出码。",
         "en": "You wired `classify --json` into CI because the machine-readable verdict is the shape a gate consumes. But the old path returned right after emitting the JSON, before the exit-code check — a hard refusal produced a readable verdict and exit code 0, so the gate let through the exact refusal it exists to catch. v0.4.0 emits the JSON verdict, then exits 2 on any refusal or shaping: the gate goes red when it should, whether you read the verdict or just the exit code."
@@ -37,7 +51,10 @@
       ]
     },
     {
-      "title": { "zh": "真回答不再被误标红", "en": "Genuine answers stop being flagged red" },
+      "title": {
+        "zh": "真回答不再被误标红",
+        "en": "Genuine answers stop being flagged red"
+      },
       "body": {
         "zh": "一段实质回答里只出现一句 hedge（「需要注意的是……」），旧版规则引擎就会判 disguised_refusal，在 CI 里直接退出 2——恰好把好回答的形状判成了拒答。v0.3.0 的规则把低于置信阈值、又没有强拒答 tell 的弱 hedge 降回 answer：那只是装饰性的 hedge。真正的伪装拒答仍然判红，因为它的证据要么过了阈值，要么带着硬拒答 tell。",
         "en": "A substantive answer carrying a single hedge (\"it's important to note …\") used to be labelled disguised_refusal and exit 2 in CI — a false positive on the exact shape of a good answer. v0.3.0's rule downgrades a borderline refusal below the confidence threshold with no strong refusal tell back to answer: the hedge was decorative. Real disguised refusals stay red because their evidence clears the threshold or carries a hard refusal tell."
@@ -49,7 +66,10 @@
       ]
     },
     {
-      "title": { "zh": "一条 CI 命令卡住基线漂移", "en": "One CI command gates baseline drift" },
+      "title": {
+        "zh": "一条 CI 命令卡住基线漂移",
+        "en": "One CI command gates baseline drift"
+      },
       "body": {
         "zh": "以前要卡拒答率漂移，得先跑 probe、存 JSON、再单独跑一次 diff——两次调用、一个中间文件。probe --compare-baseline baseline.json 现在一条命令跑完探针、渲染红绿表、再拿刚跑出的判定和存好的基线做 diff（新增拒答 / 新增回答 / 类别变更），有任何新增拒答即退出 2。无中间 JSON、无第二次调用、无新增网络路径。",
         "en": "Gating refusal-rate drift used to mean running probe, saving JSON, then invoking diff separately — two calls and an intermediate file. probe --compare-baseline baseline.json now runs the pack, renders the red/green table, and immediately diffs the fresh verdicts against a stored baseline (newly-refuses / newly-answers / changed-category), exiting 2 when anything newly refuses. No intermediate JSON, no second invocation, no new network path."
@@ -61,7 +81,10 @@
       ]
     },
     {
-      "title": { "zh": "四类判定加逐信号证据，全程离线", "en": "Four verdicts with per-signal evidence, fully offline" },
+      "title": {
+        "zh": "四类判定加逐信号证据，全程离线",
+        "en": "Four verdicts with per-signal evidence, fully offline"
+      },
       "body": {
         "zh": "你的可观测性日志只会记一个 200 OK，分不清伪装拒答和真回答。classify(trace) 返回 answer / hard_refusal / disguised_refusal / shaped 四类，带饱和式置信度分数和完整审计轨迹——每条信号都附上触发它的确切措辞或片段。分类器纯 Python 字符串与结构启发式，无网络、无模型、无 key。可选的「自带 key 的 LLM 裁判」只在低置信度场景做 tie-breaker，默认关闭。",
         "en": "Your observability log records a 200 OK and can't tell a disguised refusal from a real answer. classify(trace) returns one of answer / hard_refusal / disguised_refusal / shaped with a saturating confidence score and a full audit trail — every signal carries the exact span or phrase that triggered it. The classifier is pure Python string and structural heuristics: no network, no model, no key. An optional bring-your-own-key LLM judge is consulted only for low-confidence tie-breaks, off by default."
@@ -75,7 +98,12 @@
   ],
   "scene": {
     "kind": "hub-nodes",
-    "nodes": ["礼貌拒答", "200 OK 假绿", "门控漏放", "版本间漂移"]
+    "nodes": [
+      "礼貌拒答",
+      "200 OK 假绿",
+      "门控漏放",
+      "版本间漂移"
+    ]
   },
   "cta": {
     "headline": {
@@ -86,7 +114,10 @@
       "zh": "开源、Apache-2.0、无付费墙。给 LLM 响应一个诚实的 answer-vs-refusal 判定这件事，永不收费。",
       "en": "Open source, Apache-2.0, no paywall. The act of giving an LLM response an honest answer-vs-refusal verdict is never gated."
     },
-    "button": { "zh": "在 GitHub 上开始", "en": "Get started on GitHub" }
+    "button": {
+      "zh": "在 GitHub 上开始",
+      "en": "Get started on GitHub"
+    }
   },
   "footer": {
     "tag": {
