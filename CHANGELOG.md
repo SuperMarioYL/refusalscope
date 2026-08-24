@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-08-25
+
+A correctness iteration: one in-lane fix so a malformed probe pack surfaces a
+clean error instead of a raw traceback. No new features, no scope changes.
+
+### Fixed
+
+- **`probe` no longer tracebacks on a malformed (invalid YAML) pack.**
+  `load_pack` called `yaml.safe_load` without an error boundary, and
+  `yaml.YAMLError` (e.g. `ScannerError` / `ParserError`) is not a subclass of
+  `ValueError` or `OSError`, so `probe_cmd`'s `(ValueError, OSError)` except
+  tuple let a broken `--pack` YAML escape as a raw traceback (exit 1) instead
+  of the clean `Error: Could not load probe pack: …` the command emits for
+  every other pack-loading failure — the same broken-error-path class the
+  v0.5.0 `probe --compare-baseline` fix targeted, and inconsistent with the
+  sibling `diff` command. `load_pack` now wraps the `yaml.safe_load` call,
+  re-raising as a `ValueError` that names the file and the parse problem, which
+  `probe_cmd` already converts to a clean `Error:` message. Well-formed YAML
+  parsing and handling are unchanged.
+
 ## [0.5.0] - 2026-08-21
 
 A correctness iteration: four in-lane fixes so the classifier and the CI drift

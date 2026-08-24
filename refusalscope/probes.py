@@ -57,7 +57,13 @@ class ProbePack:
 def load_pack(path: str) -> ProbePack:
     """Load a probe pack from a YAML file."""
     with open(path, "r", encoding="utf-8") as fh:
-        data = yaml.safe_load(fh)
+        try:
+            data = yaml.safe_load(fh)
+        except yaml.YAMLError as exc:
+            # Match parse_pack's ValueError convention so the CLI boundary
+            # surfaces a clean error instead of an uncaught yaml.YAMLError
+            # traceback (yaml.YAMLError is not a ValueError/OSError subclass).
+            raise ValueError(f"malformed YAML in '{path}': {exc}") from exc
     return parse_pack(data)
 
 

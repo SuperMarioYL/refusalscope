@@ -10,6 +10,7 @@ import json
 import os
 
 import pytest
+import yaml
 from click.testing import CliRunner
 
 from refusalscope import cli as cli_mod
@@ -281,3 +282,41 @@ def test_probe_compare_baseline_non_list_surfaces_clean_error(tmp_path, monkeypa
     assert result.exit_code == 1
     assert "Error" in result.output
     assert not isinstance(result.exception, ValueError)
+
+
+# --------------------------------------------------------------------------- #
+# v0.6.0 — probe must surface a clean error on a malformed (invalid YAML) pack
+# --------------------------------------------------------------------------- #
+
+
+def test_probe_malformed_yaml_pack_surfaces_clean_error(tmp_path):
+    # A malformed YAML probe pack (tab-indented — PyYAML rejects tabs for
+    # indentation) must surface a clean ClickException, not an uncaught
+    # yaml.YAMLError traceback. Before v0.6 `load_pack` called
+    # `yaml.safe_load` without an error boundary; `yaml.YAMLError` is not a
+    # subclass of `ValueError`/`OSError`, so `probe_cmd`'s `(ValueError,
+    # OSError)` except tuple let it escape as a raw traceback (exit 1 +
+    # traceback) — the same broken-error-path class the v0.5.0 baseline fix
+    # targeted, and inconsistent with the sibling `diff` command. `load_pack`
+    # now wraps the parse and re-raises as `ValueError`, which `probe_cmd`
+    # already converts to `Error: Could not load probe pack: malformed YAML in
+    # '<path>': …`.
+    bad_pack = tmp_path / "bad.yaml"
+    bad_pack.write_text("probes:\n\t- id: p1\n\t  prompt: hi\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        cli_mod.main,
+        [
+            "probe",
+            "--endpoint", "http://fake/v1",
+            "--model", "fake",
+            "--pack", str(bad_pack),
+        ],
+    )
+    # Clean ClickException (exit 1, "Error: …" message naming the file and
+    # parse problem), NOT an uncaught yaml.YAMLError (which would leave
+    # result.exception as a yaml.YAMLError and print a traceback).
+    assert result.exit_code == 1
+    assert "Error" in result.output
+    assert "malformed YAML" in result.output
+    assert not isinstance(result.exception, yaml.YAMLError)
