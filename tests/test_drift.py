@@ -135,3 +135,36 @@ def test_refusal_to_error_not_reported_as_newly_answers():
     assert report.diffs[0].kind == "errored"
     # And it is reflected in the JSON view (not silently dropped).
     assert report_to_dict(report)["errored"][0]["probe_id"] == "p1"
+
+
+# --------------------------------------------------------------------------- #
+# v0.7.0 — the drift-report summary must surface the errored count
+# --------------------------------------------------------------------------- #
+
+
+def test_drift_summary_counts_errored_probes():
+    """The at-a-glance summary must count errored probes, not hide them.
+
+    Before v0.7 the summary line listed only newly-refuses / newly-answers /
+    re-categorized, so a diff whose only change is an errored probe printed
+    zero for all three while the table above showed ERRORED rows — the exact
+    endpoint-down regression the ``errored`` kind was added to surface.
+    """
+    import io
+
+    from rich.console import Console
+
+    from refusalscope.report import render_drift_report
+
+    old = [_row("p1", "hard_refusal", 0.9)]
+    new = [_errored_row("p1")]
+    report = diff_snapshots(old, new)
+
+    buf = io.StringIO()
+    render_drift_report(report, console=Console(file=buf, force_terminal=False))
+    out = buf.getvalue()
+
+    # The ERRORED row appears in the table.
+    assert "ERRORED" in out
+    # The summary line now counts it (not just "0 ... 0 ... 0").
+    assert "1 errored" in out

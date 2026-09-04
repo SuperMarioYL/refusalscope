@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-04
+
+A correctness iteration: two in-lane fixes so the version surfaces stay
+lockstep and the drift-report summary no longer hides errored probes. No new
+features, no scope changes.
+
+### Fixed
+
+- **The live site `content_version` tracks the shipped tag again.**
+  `web/site.json` still carried `content_version: "v0.5.0"` on the v0.6.0 tag
+  (the v0.5.0 release bumped it, but the v0.6.0 release did not), so the
+  Pages site's version surface was one minor version behind `VERSION`,
+  `__init__.py __version__`, `pyproject.toml`, the CLI `--version`, and the
+  CHANGELOG head. `content_version` now reads `0.7.0` (matching the `VERSION`
+  file format), and a lockstep test (`tests/test_version_lockstep.py`) asserts
+  `VERSION == __version__ == site.json content_version == CHANGELOG head ==
+  CLI --version`, failing on the v0.6.0 tag to prove the drift was real.
+
+- **The drift-report summary now counts errored probes.**
+  The v0.5.0 fix added an `errored` kind to `_classify_kind`, a
+  `DriftReport.errored` property, and an `ERRORED` row style, so a
+  refusal-to-error transition is no longer mislabeled as `newly_answers`. But
+  `render_drift_report`'s at-a-glance summary line was never updated, so a diff
+  whose only change is an errored probe printed `0 newly-refuses  0
+  newly-answers  0 re-categorized` and hid the errored rows that the table
+  above showed — the exact regression the `errored` kind exists to surface. The
+  summary now appends the errored count, and errored rows sort with the
+  actionable refusals in the table.
+
 ## [0.6.0] - 2026-08-25
 
 A correctness iteration: one in-lane fix so a malformed probe pack surfaces a
@@ -169,3 +198,5 @@ Initial release.
 [0.1.0]: https://github.com/SuperMarioYL/refusalscope/releases/tag/v0.1.0
 
 [0.5.0]: https://github.com/SuperMarioYL/refusalscope/releases/tag/v0.5.0
+
+[0.7.0]: https://github.com/SuperMarioYL/refusalscope/releases/tag/v0.7.0

@@ -145,8 +145,9 @@ def render_drift_report(report: DriftReport, *, console: Console | None = None) 
     table.add_column("ask", overflow="fold")
 
     changed = report.changed
-    # Most actionable first: new refusals, then new answers, then re-categorized.
-    order = {"newly_refuses": 0, "newly_answers": 1, "changed_category": 2}
+    # Most actionable first: new refusals, then errored (a potential
+    # endpoint-down regression), then new answers, then re-categorized.
+    order = {"newly_refuses": 0, "errored": 1, "newly_answers": 2, "changed_category": 3}
     for d in sorted(changed, key=lambda x: (order.get(x.kind, 9), x.probe_id)):
         style, name = _DRIFT_KIND_STYLE.get(d.kind, ("default", d.kind.upper()))
         table.add_row(
@@ -165,6 +166,14 @@ def render_drift_report(report: DriftReport, *, console: Console | None = None) 
     summary.append(f"{len(report.newly_answers)} newly-answers", style="green")
     summary.append("  ")
     summary.append(f"{len(report.changed_category)} re-categorized", style="yellow")
+    # Surface the errored count so a refusal→error (or error→refusal) transition
+    # is not hidden from the at-a-glance summary a CI operator reads first. The
+    # v0.5.0 fix added the errored kind to the table and JSON but left the summary
+    # line incomplete, so a diff whose only change is an errored probe printed
+    # zero counts for all three categories while the table showed ERRORED rows.
+    if report.errored:
+        summary.append("  ")
+        summary.append(f"{len(report.errored)} errored", style="bold red")
     if not changed:
         summary = Text("no refusal-scope drift across the two snapshots", style="green")
     console.print(summary)
