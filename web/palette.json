@@ -1,0 +1,38 @@
+{
+  "mode": "auto",
+  "id": "6ae656-6ae79c-d1f6ac-4018dd71513d",
+  "identity": "https://github.com/supermarioyl/refusalscope",
+  "primary": "#6ae656",
+  "secondary": "#6ae79c",
+  "highlight": "#d1f6ac",
+  "dark": {
+    "bg": "#060c0d",
+    "panel": "#0d1717",
+    "code": "#0b1713",
+    "ink": "#f6fdee",
+    "muted": "#99b9a8",
+    "line": "#1c3c1d",
+    "primary": "#6ae656",
+    "secondary": "#6ae79c",
+    "highlight": "#d1f6ac",
+    "accent": "#6ae656",
+    "buttonStart": "#3e8632",
+    "buttonEnd": "#3d8459",
+    "buttonText": "#ffffff"
+  },
+  "light": {
+    "bg": "#fafef9",
+    "panel": "#f8fef7",
+    "code": "#f5fdf3",
+    "ink": "#162a1c",
+    "muted": "#597b6b",
+    "line": "#d2f7cb",
+    "primary": "#3d8331",
+    "secondary": "#3b8157",
+    "highlight": "#677a55",
+    "accent": "#3d8331",
+    "buttonStart": "#3e8632",
+    "buttonEnd": "#3d8459",
+    "buttonText": "#ffffff"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "name": "refusalscope",
+  "tagline": "Inspect refusal signals behind a successful response.",
+  "architecture": {
+    "title": "How RefusalScope works",
+    "nodes": [
+      {
+        "title": "Trace normalization",
+        "detail": "refusalscope/trace.py"
+      },
+      {
+        "title": "Signal extraction",
+        "detail": "refusalscope/signals.py"
+      },
+      {
+        "title": "Rule classifier",
+        "detail": "refusalscope/classifier.py"
+      },
+      {
+        "title": "Snapshot drift",
+        "detail": "refusalscope/drift.py"
+      }
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ]
+  },
+  "process": {
+    "title": "From input to a useful result",
+    "steps": [
+      {
+        "title": "Normalize pairs",
+        "detail": "Explicit prompts and responses"
+      },
+      {
+        "title": "Extract signals",
+        "detail": "Answer or refusal phrases"
+      },
+      {
+        "title": "Return labels",
+        "detail": "Evidence-linked rule verdict"
+      }
+    ],
+    "result": "The direct response is labeled answer and the explicit refusal is labeled hard_refusal."
+  },
+  "integrations": {
+    "title": "Supported input and output routes",
+    "items": [
+      {
+        "title": "Text / prompt-response",
+        "detail": "Saved classification input"
+      },
+      {
+        "title": "OpenAI response shape",
+        "detail": "Response normalization"
+      },
+      {
+        "title": "Probe endpoint",
+        "detail": "Optional configured HTTP evaluation"
+      },
+      {
+        "title": "Snapshot JSON",
+        "detail": "Label drift comparison"
+      }
+    ]
+  }
+}

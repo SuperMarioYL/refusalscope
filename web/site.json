@@ -1,128 +1,215 @@
 {
-  "schema": 1,
-  "content_version": "0.7.0",
+  "schema": 3,
   "name": "refusalscope",
   "github": "https://github.com/SuperMarioYL/refusalscope",
   "host": "refusalscope.lei6393.com",
+  "palette": "auto",
   "lang": {
-    "primary": "zh",
+    "primary": "en",
     "toggle": true
   },
-  "accent": [
-    "#DC2626"
-  ],
+  "meta": {
+    "visual_style": "neon-particle",
+    "demo_source": "docs/demo-results.json"
+  },
   "hero": {
-    "eyebrow": {
-      "zh": "CI 门控不再漏放拒答 · 一条命令卡基线漂移 · 全程离线 · 无需 API key",
-      "en": "CI gate no longer misses a refusal · One-command drift gate · Fully offline · No API key"
-    },
     "headline": {
-      "zh": "模型说「好问题！」却不回答你的诉求\n给它一个诚实的判定，真回答不再被误标红",
-      "en": "The model says \"great question!\" and never answers your ask\n— give it an honest verdict where a real answer stops being flagged red"
+      "en": "Inspect refusal signals behind a successful response.",
+      "zh": "检查成功响应背后的拒答信号。"
     },
     "sub": {
-      "zh": "托管 LLM 的响应读起来乐于助人，可观测性日志里却只记下一个干净的 200 OK。refusalscope 把一次响应判为 answer / hard_refusal / disguised_refusal / shaped 四类，附上让它露馅的确切片段和逐信号审计。v0.4.0 修好了喂给 CI 门控的机器可读判定：以前用 `classify --json` 时，判定写得出来、退出码却还是 0——一次硬拒答从你为抓它而装的门控里溜了过去。现在 `--json` 先吐出判定，再对任何拒答或塑形退出 2：门控该失败时就失败，无论你读 verdict 还是只看退出码。",
-      "en": "A hosted LLM's response reads as helpful, yet your observability log only records a clean 200 OK. refusalscope classifies a response as answer / hard_refusal / disguised_refusal / shaped, with the exact phrase that gave it away and a per-signal audit trail. v0.4.0 fixes the machine-readable verdict your CI gate consumes: with `classify --json` the verdict came out fine but the exit code stayed 0 — a hard refusal slipped straight through the gate you built to catch it. `--json` now emits the verdict, then exits 2 on any refusal or shaping — the gate fails when it should, whether you read the verdict or just the exit code."
+      "en": "RefusalScope labels saved responses as answer, hard_refusal, disguised_refusal or shaped and returns the rule evidence behind the label.",
+      "zh": "RefusalScope 将保存响应标为 answer、hard_refusal、disguised_refusal 或 shaped，并返回标签对应的规则证据。"
     },
-    "command": "refusalscope classify trace.json",
-    "cta": {
-      "zh": "开始使用",
-      "en": "Get started"
-    },
-    "ctaGithub": {
-      "zh": "在 GitHub 查看",
-      "en": "View on GitHub"
-    }
+    "href": "#quickstart"
   },
   "advantages": [
     {
       "title": {
-        "zh": "你为抓拒答而装的门控，真的会在拒答时失败",
-        "en": "The gate you built to catch refusals actually fails on one"
+        "en": "Inspect trigger evidence",
+        "zh": "检查触发证据"
       },
       "body": {
-        "zh": "你把 `classify --json` 接进 CI，是因为机器可读的判定才是门控要消费的形状。可旧版在吐出 JSON 后、做退出码检查之前就提前返回了——一次硬拒答读得到 verdict、退出码却是 0，门控于是放过了它本该抓住的拒答。v0.4.0 先吐 JSON 判定，再对任何拒答或塑形退出 2：门控该红就红，无论你读不读 verdict、还是只看退出码。",
-        "en": "You wired `classify --json` into CI because the machine-readable verdict is the shape a gate consumes. But the old path returned right after emitting the JSON, before the exit-code check — a hard refusal produced a readable verdict and exit code 0, so the gate let through the exact refusal it exists to catch. v0.4.0 emits the JSON verdict, then exits 2 on any refusal or shaping: the gate goes red when it should, whether you read the verdict or just the exit code."
-      },
-      "chips": [
-        "› --json 也退出 2",
-        "› 硬拒答不再漏放",
-        "› 门控真正生效"
-      ]
+        "en": "The verdict includes fired signals.",
+        "zh": "结论包含已触发信号。"
+      }
     },
     {
       "title": {
-        "zh": "真回答不再被误标红",
-        "en": "Genuine answers stop being flagged red"
+        "en": "Compare saved snapshots",
+        "zh": "比较保存快照"
       },
       "body": {
-        "zh": "一段实质回答里只出现一句 hedge（「需要注意的是……」），旧版规则引擎就会判 disguised_refusal，在 CI 里直接退出 2——恰好把好回答的形状判成了拒答。v0.3.0 的规则把低于置信阈值、又没有强拒答 tell 的弱 hedge 降回 answer：那只是装饰性的 hedge。真正的伪装拒答仍然判红，因为它的证据要么过了阈值，要么带着硬拒答 tell。",
-        "en": "A substantive answer carrying a single hedge (\"it's important to note …\") used to be labelled disguised_refusal and exit 2 in CI — a false positive on the exact shape of a good answer. v0.3.0's rule downgrades a borderline refusal below the confidence threshold with no strong refusal tell back to answer: the hedge was decorative. Real disguised refusals stay red because their evidence clears the threshold or carries a hard refusal tell."
-      },
-      "chips": [
-        "› 一句 hedge 不再误判",
-        "› 无强 tell 即降回 answer",
-        "› 真拒答仍判红"
-      ]
+        "en": "Probe IDs connect labels across runs.",
+        "zh": "probe ID 连接多次运行标签。"
+      }
     },
     {
       "title": {
-        "zh": "一条 CI 命令卡住基线漂移",
-        "en": "One CI command gates baseline drift"
+        "en": "Run classification offline",
+        "zh": "离线分类"
       },
       "body": {
-        "zh": "以前要卡拒答率漂移，得先跑 probe、存 JSON、再单独跑一次 diff——两次调用、一个中间文件。probe --compare-baseline baseline.json 现在一条命令跑完探针、渲染红绿表、再拿刚跑出的判定和存好的基线做 diff（新增拒答 / 新增回答 / 类别变更），有任何新增拒答即退出 2。无中间 JSON、无第二次调用、无新增网络路径。",
-        "en": "Gating refusal-rate drift used to mean running probe, saving JSON, then invoking diff separately — two calls and an intermediate file. probe --compare-baseline baseline.json now runs the pack, renders the red/green table, and immediately diffs the fresh verdicts against a stored baseline (newly-refuses / newly-answers / changed-category), exiting 2 when anything newly refuses. No intermediate JSON, no second invocation, no new network path."
+        "en": "The default classifier uses local rules.",
+        "zh": "默认分类器使用本地规则。"
+      }
+    }
+  ],
+  "demo": {
+    "title": {
+      "en": "Run it on a complete example",
+      "zh": "运行完整示例"
+    },
+    "note": {
+      "en": "Classify two complete synthetic prompt-response pairs: a direct arithmetic answer and an explicit refusal to summarize.",
+      "zh": "分类两组完整合成问答：直接算术回答，以及明确拒绝摘要请求。"
+    },
+    "source": "https://github.com/SuperMarioYL/refusalscope/blob/main/docs/demo-results.json",
+    "steps": [
+      {
+        "label": "Recorded run",
+        "body": "Classify two explicit synthetic responses with the production offline rules; no live provider behavior or refusal policy evaluation.",
+        "command": ".venv/bin/python examples/presentation-demo.py",
+        "output": "{\"prompt\": \"What is two plus two?\", \"response\": \"Two plus two is four.\", \"label\": \"answer\", \"signals\": 0}\n{\"prompt\": \"Please summarize this paragraph.\", \"response\": \"I cannot assist with that request.\", \"label\": \"hard_refusal\", \"signals\": 1}",
+        "image": "/assets/presentation/demo-0-light.svg",
+        "imageDark": "/assets/presentation/demo-0-dark.svg"
+      }
+    ]
+  },
+  "quickstart": {
+    "title": {
+      "en": "Try it locally",
+      "zh": "本地上手"
+    },
+    "body": {
+      "en": "Classify two complete synthetic prompt-response pairs: a direct arithmetic answer and an explicit refusal to summarize.",
+      "zh": "分类两组完整合成问答：直接算术回答，以及明确拒绝摘要请求。"
+    },
+    "steps": [
+      {
+        "title": {
+          "en": "Install from source",
+          "zh": "从源码安装"
+        },
+        "code": "git clone https://github.com/SuperMarioYL/refusalscope.git\ncd refusalscope\nuv venv .venv\nuv pip install --python .venv/bin/python -e .\nsource .venv/bin/activate"
       },
-      "chips": [
-        "› 跑探针+卡漂移一条命令",
-        "› 新增拒答即退出 2",
-        "› 无中间 JSON 文件"
-      ]
+      {
+        "title": {
+          "en": "Run the included example",
+          "zh": "运行随仓示例"
+        },
+        "code": ".venv/bin/python examples/presentation-demo.py"
+      }
+    ]
+  },
+  "limitations": [
+    {
+      "en": "Labels and confidence are heuristic outputs, not calibrated truth about intent, quality or whether refusal was appropriate.",
+      "zh": "标签和置信度是启发式输出，不是关于意图、质量或拒答是否适当的校准真值。"
     },
     {
-      "title": {
-        "zh": "四类判定加逐信号证据，全程离线",
-        "en": "Four verdicts with per-signal evidence, fully offline"
-      },
-      "body": {
-        "zh": "你的可观测性日志只会记一个 200 OK，分不清伪装拒答和真回答。classify(trace) 返回 answer / hard_refusal / disguised_refusal / shaped 四类，带饱和式置信度分数和完整审计轨迹——每条信号都附上触发它的确切措辞或片段。分类器纯 Python 字符串与结构启发式，无网络、无模型、无 key。可选的「自带 key 的 LLM 裁判」只在低置信度场景做 tie-breaker，默认关闭。",
-        "en": "Your observability log records a 200 OK and can't tell a disguised refusal from a real answer. classify(trace) returns one of answer / hard_refusal / disguised_refusal / shaped with a saturating confidence score and a full audit trail — every signal carries the exact span or phrase that triggered it. The classifier is pure Python string and structural heuristics: no network, no model, no key. An optional bring-your-own-key LLM judge is consulted only for low-confidence tie-breaks, off by default."
-      },
-      "chips": [
-        "› 四类判定带置信度",
-        "› 每条信号附确切片段",
-        "› 零网络零 key"
-      ]
+      "en": "An answer label means no stronger supported signal won; it does not prove the response is correct or complete.",
+      "zh": "answer 标签意味着没有更强的已支持信号胜出，不证明回答正确或完整。"
+    },
+    {
+      "en": "The demo uses synthetic responses and makes no statement about any live provider’s policy.",
+      "zh": "示例使用合成响应，不说明任何在线提供方的策略。"
     }
   ],
   "scene": {
-    "kind": "hub-nodes",
-    "nodes": [
-      "礼貌拒答",
-      "200 OK 假绿",
-      "门控漏放",
-      "版本间漂移"
+    "kind": "neon-graph",
+    "fallback": "/assets/presentation/scene-dark.svg",
+    "fallbackLight": "/assets/presentation/scene-light.svg"
+  },
+  "story": {
+    "intro": {
+      "title": {
+        "en": "A concrete task",
+        "zh": "从实际任务出发"
+      },
+      "body": {
+        "en": "A successful HTTP request says little about whether the answer addresses the prompt. Explicit phrase and structure signals give reviewers another way to inspect responses and compare snapshots.",
+        "zh": "HTTP 请求成功并不能说明回答是否回应了问题。明确词句和结构信号给检查者提供另一种查看响应和比较快照的方法。"
+      }
+    },
+    "sections": [
+      {
+        "title": {
+          "en": "Follow the operation",
+          "zh": "处理过程"
+        },
+        "body": {
+          "en": "Trace normalization accepts supported input shapes. Signal extractors vote for labels; the classifier applies priority and weighted rules. Probe tooling can collect endpoint responses, and drift compares saved labels keyed by probe ID.",
+          "zh": "轨迹归一化接受支持的输入形状；信号提取器为标签投票，分类器按优先级与权重判断。探针工具可收集端点响应，drift 按 probe ID 比较保存标签。"
+        },
+        "image": {
+          "light": "/assets/presentation/process-light.svg",
+          "dark": "/assets/presentation/process-dark.svg",
+          "alt": {
+            "en": "Follow the operation",
+            "zh": "处理过程"
+          }
+        }
+      },
+      {
+        "title": {
+          "en": "How RefusalScope works",
+          "zh": "RefusalScope 的工作方式"
+        },
+        "body": {
+          "en": "Trace normalization accepts supported input shapes. Signal extractors vote for labels; the classifier applies priority and weighted rules. Probe tooling can collect endpoint responses, and drift compares saved labels keyed by probe ID.",
+          "zh": "轨迹归一化接受支持的输入形状；信号提取器为标签投票，分类器按优先级与权重判断。探针工具可收集端点响应，drift 按 probe ID 比较保存标签。"
+        },
+        "image": {
+          "light": "/assets/presentation/architecture-light.svg",
+          "dark": "/assets/presentation/architecture-dark.svg",
+          "alt": {
+            "en": "How RefusalScope works",
+            "zh": "RefusalScope 的工作方式"
+          }
+        }
+      },
+      {
+        "title": {
+          "en": "Connect the pieces",
+          "zh": "输入与输出"
+        },
+        "body": {
+          "en": "The following routes are implemented in the source. Choose the input that matches your task and keep the resulting artifact with your project.",
+          "zh": "以下路径已有源码实现。按任务选择输入，并把生成的结果与项目一起保存。"
+        },
+        "image": {
+          "light": "/assets/presentation/integrations-light.svg",
+          "dark": "/assets/presentation/integrations-dark.svg",
+          "alt": {
+            "en": "Connect the pieces",
+            "zh": "输入与输出"
+          }
+        }
+      }
+    ],
+    "details": [
+      {
+        "title": {
+          "en": "Configuration",
+          "zh": "配置"
+        },
+        "body": {
+          "en": "classify reads a trace file and can emit JSON. probe requires endpoint and model; credentials can come from OPENAI_API_KEY. diff consumes snapshots with corresponding probe IDs. The library’s optional LLM judge is off unless explicitly supplied.",
+          "zh": "classify 读取轨迹文件并可输出 JSON；probe 要求 endpoint 与 model，凭据可来自 OPENAI_API_KEY。diff 使用具备对应 probe ID 的快照。库的可选 LLM judge 默认关闭，只有显式提供时才使用。"
+        }
+      },
+      {
+        "title": {
+          "en": "Further use",
+          "zh": "进一步使用"
+        },
+        "body": {
+          "en": "The CLI exposes the following operations. Commands after the example use your own paths or identifiers.",
+          "zh": "CLI 提供以下操作。示例之外的命令需要替换成你的文件路径或标识。"
+        },
+        "code": "refusalscope classify trace.json --json\nrefusalscope diff old-probes.json new-probes.json --json\n# Optional live probe; uses your configured endpoint:\nrefusalscope probe --endpoint http://localhost:8000/v1 --model your-model --json results.json"
+      }
     ]
-  },
-  "cta": {
-    "headline": {
-      "zh": "把一次响应变成可信赖的判定，并卡住它相对基线的漂移",
-      "en": "Turn a response into a verdict you can trust — and gate its drift against a baseline"
-    },
-    "sub": {
-      "zh": "开源、Apache-2.0、无付费墙。给 LLM 响应一个诚实的 answer-vs-refusal 判定这件事，永不收费。",
-      "en": "Open source, Apache-2.0, no paywall. The act of giving an LLM response an honest answer-vs-refusal verdict is never gated."
-    },
-    "button": {
-      "zh": "在 GitHub 上开始",
-      "en": "Get started on GitHub"
-    }
-  },
-  "footer": {
-    "tag": {
-      "zh": "给 LLM 响应的离线 answer-vs-refusal 判定器与漂移门控",
-      "en": "The offline answer-vs-refusal verdict and drift gate for LLM responses"
-    }
   }
 }

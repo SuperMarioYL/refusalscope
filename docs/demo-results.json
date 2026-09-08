@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "source_revision": "5576cc3209ca39659b25d4b03be22e9e08c829ce",
+  "scope": "Classify two explicit synthetic responses with the production offline rules; no live provider behavior or refusal policy evaluation.",
+  "steps": [
+    {
+      "label": "Recorded run",
+      "body": "Classify two explicit synthetic responses with the production offline rules; no live provider behavior or refusal policy evaluation.",
+      "command": ".venv/bin/python examples/presentation-demo.py",
+      "output": "{\"prompt\": \"What is two plus two?\", \"response\": \"Two plus two is four.\", \"label\": \"answer\", \"signals\": 0}\n{\"prompt\": \"Please summarize this paragraph.\", \"response\": \"I cannot assist with that request.\", \"label\": \"hard_refusal\", \"signals\": 1}"
+    }
+  ]
+}
