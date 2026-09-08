@@ -211,5 +211,6 @@
         "code": "refusalscope classify trace.json --json\nrefusalscope diff old-probes.json new-probes.json --json\n# Optional live probe; uses your configured endpoint:\nrefusalscope probe --endpoint http://localhost:8000/v1 --model your-model --json results.json"
       }
     ]
-  }
+  },
+  "content_version": "0.7.0"
 }
