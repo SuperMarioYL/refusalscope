@@ -18,8 +18,8 @@
       "zh": "检查成功响应背后的拒答信号。"
     },
     "sub": {
-      "en": "RefusalScope labels saved responses as answer, hard_refusal, disguised_refusal or shaped and returns the rule evidence behind the label.",
-      "zh": "RefusalScope 将保存响应标为 answer、hard_refusal、disguised_refusal 或 shaped，并返回标签对应的规则证据。"
+      "en": "RefusalScope labels saved responses — or a response piped straight from curl — as answer, hard_refusal, disguised_refusal or shaped and returns the rule evidence behind the label.",
+      "zh": "RefusalScope 将保存的响应（或用 curl 直接管道传入的响应）标为 answer、hard_refusal、disguised_refusal 或 shaped，并返回标签对应的规则证据。"
     },
     "href": "#quickstart"
   },
@@ -40,8 +40,8 @@
         "zh": "比较保存快照"
       },
       "body": {
-        "en": "Probe IDs connect labels across runs.",
-        "zh": "probe ID 连接多次运行标签。"
+        "en": "Drift diffs surface errored probes as ERRORED rows instead of counting them as improvements.",
+        "zh": "drift 对比把出错探针标为 ERRORED 行，而不是算作改善。"
       }
     },
     {
@@ -99,6 +99,13 @@
           "zh": "运行随仓示例"
         },
         "code": ".venv/bin/python examples/presentation-demo.py"
+      },
+      {
+        "title": {
+          "en": "Pipe a live response",
+          "zh": "管道传入在线响应"
+        },
+        "code": "curl -s https://api.example.com/v1/chat/completions \\\n  -H \"Authorization: Bearer $OPENAI_API_KEY\" \\\n  -d '{\"model\":\"your-model\",\"messages\":[{\"role\":\"user\",\"content\":\"...\"}]}' \\\n  | refusalscope classify -\n# exit 2 = refusal/shaping verdict (CI-gateable); add --json for machine output"
       }
     ]
   },
@@ -207,8 +214,8 @@
           "zh": "配置"
         },
         "body": {
-          "en": "classify reads a trace file and can emit JSON. probe requires endpoint and model; credentials can come from OPENAI_API_KEY. diff consumes snapshots with corresponding probe IDs. The library’s optional LLM judge is off unless explicitly supplied.",
-          "zh": "classify 读取轨迹文件并可输出 JSON；probe 要求 endpoint 与 model，凭据可来自 OPENAI_API_KEY。diff 使用具备对应 probe ID 的快照。库的可选 LLM judge 默认关闭，只有显式提供时才使用。"
+          "en": "classify reads a trace file (or - for stdin) and can emit JSON. probe requires endpoint and model; credentials can come from OPENAI_API_KEY. diff consumes snapshots with corresponding probe IDs and reports newly-refuses, newly-answers and errored transitions. The library’s optional LLM judge is off unless explicitly supplied.",
+          "zh": "classify 读取轨迹文件（或用 - 读取 stdin）并可输出 JSON；probe 要求 endpoint 与 model，凭据可来自 OPENAI_API_KEY。diff 使用具备对应 probe ID 的快照，报告 newly-refuses、newly-answers 与 errored 转变。库的可选 LLM judge 默认关闭，只有显式提供时才使用。"
         }
       },
       {
@@ -220,7 +227,7 @@
           "en": "The CLI exposes the following operations. Commands after the example use your own paths or identifiers.",
           "zh": "CLI 提供以下操作。示例之外的命令需要替换成你的文件路径或标识。"
         },
-        "code": "refusalscope classify trace.json --json\nrefusalscope diff old-probes.json new-probes.json --json\n# Optional live probe; uses your configured endpoint:\nrefusalscope probe --endpoint http://localhost:8000/v1 --model your-model --json results.json"
+        "code": "refusalscope classify trace.json --json\n# Or pipe a response straight in (no temp file):\ncurl -s https://api.example.com/v1/chat/completions ... | refusalscope classify -\nrefusalscope diff old-probes.json new-probes.json --json\n# Optional live probe; uses your configured endpoint:\nrefusalscope probe --endpoint http://localhost:8000/v1 --model your-model --json results.json"
       }
     ]
   },
