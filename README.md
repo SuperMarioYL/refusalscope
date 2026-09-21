@@ -85,6 +85,8 @@ The CLI exposes the following operations. Commands after the example use your ow
 
 ```bash
 refusalscope classify trace.json --json
+# Or pipe a response straight in (no temp file):
+curl -s https://api.example.com/v1/chat/completions -H "Authorization: Bearer $OPENAI_API_KEY" -d '{"model":"your-model","messages":[{"role":"user","content":"..."}]}' | refusalscope classify -
 refusalscope diff old-probes.json new-probes.json --json
 # Optional live probe; uses your configured endpoint:
 refusalscope probe --endpoint http://localhost:8000/v1 --model your-model --json results.json

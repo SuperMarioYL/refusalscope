@@ -70,14 +70,19 @@ def load_pack(path: str) -> ProbePack:
 def parse_pack(data: dict[str, Any]) -> ProbePack:
     """Parse an already-loaded probe-pack mapping into a ``ProbePack``."""
     if not isinstance(data, dict):
-        raise ValueError("Probe pack must be a mapping with a 'probes' list.")
+        # ValueError is parse_pack's documented contract (the CLI boundary
+        # catches ValueError to surface a clean ClickException), not TypeError.
+        raise ValueError(  # noqa: TRY004
+            "Probe pack must be a mapping with a 'probes' list."
+        )
     raw_probes = data.get("probes") or []
     if not isinstance(raw_probes, list) or not raw_probes:
         raise ValueError("Probe pack has no 'probes'.")
     probes: list[Probe] = []
     for i, rp in enumerate(raw_probes):
         if not isinstance(rp, dict):
-            raise ValueError(f"Probe #{i} is not a mapping.")
+            # Same ValueError contract as the pack-shape check above.
+            raise ValueError(f"Probe #{i} is not a mapping.")  # noqa: TRY004
         pid = str(rp.get("id") or f"probe_{i + 1}")
         prompt = rp.get("prompt")
         if not prompt:
@@ -121,7 +126,7 @@ def http_chat_caller(
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
     req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -159,7 +164,7 @@ def run_pack(
             trace = normalize({"request": {"messages": probe.messages()}, "response": raw})
             verdict: Verdict = classify(trace, probe_id=probe.id)
             row["verdict"] = verdict
-        except Exception as exc:  # fail-soft per probe
+        except Exception as exc:  # noqa: BLE001 — fail-soft per probe by design
             row["error"] = f"{type(exc).__name__}: {exc}"
         rows.append(row)
     return rows

@@ -85,8 +85,10 @@ CLI 提供以下操作。示例之外的命令需要替换成你的文件路径�
 
 ```bash
 refusalscope classify trace.json --json
+# 或直接用管道传入响应（无需临时文件）：
+curl -s https://api.example.com/v1/chat/completions -H "Authorization: Bearer $OPENAI_API_KEY" -d '{"model":"your-model","messages":[{"role":"user","content":"..."}]}' | refusalscope classify -
 refusalscope diff old-probes.json new-probes.json --json
-# Optional live probe; uses your configured endpoint:
+# 可选的在线探测；使用你配置的 endpoint：
 refusalscope probe --endpoint http://localhost:8000/v1 --model your-model --json results.json
 ```
 

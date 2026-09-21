@@ -114,3 +114,50 @@ def test_classify_rendered_exits_0_on_genuine_answer(tmp_path):
     result = CliRunner().invoke(cli_mod.main, ["classify", trace_path])
     assert result.exit_code == 0, result.output
     assert "ANSWER" in result.output
+
+
+# --------------------------------------------------------------------------- #
+# v0.8.0 — `classify -` reads the trace from stdin (pipe workflow)
+# --------------------------------------------------------------------------- #
+
+
+def test_classify_stdin_exits_2_on_hard_refusal():
+    """`classify -` reads stdin and honors the same exit-2 contract."""
+    result = CliRunner().invoke(
+        cli_mod.main,
+        ["classify", "--json", "-"],
+        input=json.dumps(_HARD_REFUSAL),
+    )
+    assert result.exit_code == 2, result.output
+    payload = json.loads(result.output)
+    assert payload["label"] == "hard_refusal"
+
+
+def test_classify_stdin_exits_0_on_genuine_answer():
+    result = CliRunner().invoke(
+        cli_mod.main,
+        ["classify", "--json", "-"],
+        input=json.dumps(_ANSWER),
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["label"] == "answer"
+
+
+def test_classify_stdin_raw_text_bare_string_shape():
+    """Non-JSON stdin falls back to the bare-string shape (load_trace contract)."""
+    result = CliRunner().invoke(
+        cli_mod.main,
+        ["classify", "--json", "-"],
+        input="I'm sorry, but I can't help with that.",
+    )
+    assert result.exit_code == 2, result.output
+    assert json.loads(result.output)["label"] == "hard_refusal"
+
+
+def test_classify_missing_file_still_usage_error(tmp_path):
+    """The stdin affordance must not weaken the missing-file usage error (exit 2)."""
+    result = CliRunner().invoke(
+        cli_mod.main, ["classify", str(tmp_path / "nope.json")]
+    )
+    assert result.exit_code == 2, result.output
+    assert "does not exist" in result.output

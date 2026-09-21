@@ -104,7 +104,10 @@ def _index_by_probe_id(rows: Any) -> dict[str, dict[str, Any]]:
     or nested under ``verdict``. Rows without a usable id are skipped.
     """
     if not isinstance(rows, list):
-        raise ValueError(
+        # ValueError, not TypeError, is this module's documented contract: the
+        # CLI boundary (cli.py diff_cmd / probe_cmd) catches ValueError to
+        # surface a clean ClickException for malformed snapshot files.
+        raise ValueError(  # noqa: TRY004
             "Verdict JSON must be a list of probe rows (the output of "
             "`refusalscope probe --json`)."
         )
@@ -139,16 +142,20 @@ def _confidence_of(row: dict[str, Any]) -> float | None:
 
 
 def _classify_kind(old_label: str | None, new_label: str | None) -> str:
-    if old_label == new_label:
-        return "unchanged"
     # An errored probe (verdict None → label None) on either side means we do
     # not know the refusal state for that run, so a refusal→error (or
     # error→refusal) transition must NOT be reported as newly_answers /
     # newly_refuses — that would mask a CI drift regression (an endpoint going
     # down mid-run reading as the model "newly answering"). Report it as its
-    # own kind so the gate surfaces the unknown/error state instead.
+    # own kind so the gate surfaces the unknown/error state instead. This
+    # check MUST precede the equality check: an error→error transition
+    # (endpoint down on both runs) has unknown refusal state on both sides and
+    # must surface as `errored`, not silently collapse to `unchanged` — the
+    # v0.5.0 fix placed this after the equality check and missed that case.
     if old_label is None or new_label is None:
         return "errored"
+    if old_label == new_label:
+        return "unchanged"
     old_ref = _is_refusal(old_label)
     new_ref = _is_refusal(new_label)
     if not old_ref and new_ref:

@@ -11,18 +11,18 @@ calls. An optional BYO-key LLM-judge tie-breaker is opt-in and OFF by default.
 
 from __future__ import annotations
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
-from .model import Signal, Trace, Verdict, VerdictLabel
 from .classifier import classify
+from .model import Signal, Trace, Verdict, VerdictLabel
 from .trace import normalize
 
 __all__ = [
-    "__version__",
     "Signal",
     "Trace",
     "Verdict",
     "VerdictLabel",
+    "__version__",
     "classify",
     "normalize",
 ]

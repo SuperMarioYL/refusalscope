@@ -117,7 +117,10 @@ def normalize(data: Any) -> Trace:
         return Trace(prompt="", response=data, meta={"source_shape": "bare_string"})
 
     if not isinstance(data, dict):
-        raise ValueError(
+        # ValueError, not TypeError, is this module's documented contract: the
+        # CLI boundary (classify_cmd) catches ValueError to surface a clean
+        # ClickException for un-ingestable input.
+        raise ValueError(  # noqa: TRY004
             f"Cannot normalize a {type(data).__name__}; expected str or object."
         )
 
@@ -233,6 +236,19 @@ def normalize(data: Any) -> Trace:
     )
 
 
+def load_trace_from_text(raw: str) -> Trace:
+    """Normalize raw text (a file's contents or a stdin stream) into a ``Trace``.
+
+    If the text is not valid JSON, it is treated as a bare response string
+    (shape 1).
+    """
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return normalize(raw)
+    return normalize(data)
+
+
 def load_trace(path: str) -> Trace:
     """Load a JSON file from ``path`` and normalize it into a ``Trace``.
 
@@ -241,8 +257,4 @@ def load_trace(path: str) -> Trace:
     """
     with open(path, "r", encoding="utf-8") as fh:
         raw = fh.read()
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        return normalize(raw)
-    return normalize(data)
+    return load_trace_from_text(raw)

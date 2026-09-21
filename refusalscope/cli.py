@@ -27,7 +27,7 @@ from .report import (
     render_verdict,
     verdict_to_dict,
 )
-from .trace import load_trace
+from .trace import load_trace, load_trace_from_text
 
 console = Console()
 
@@ -59,7 +59,7 @@ def main() -> None:
 
 
 @main.command("classify")
-@click.argument("trace_path", type=click.Path(exists=True, dir_okay=False))
+@click.argument("trace_path", type=click.Path(dir_okay=False, allow_dash=True))
 @click.option("--json", "as_json", is_flag=True, help="Emit the verdict as JSON.")
 @click.option(
     "--show-response/--no-show-response",
@@ -67,11 +67,30 @@ def main() -> None:
     help="Echo the response text under the verdict.",
 )
 def classify_cmd(trace_path: str, as_json: bool, show_response: bool) -> None:
-    """Classify a saved TRACE_PATH (JSON or raw response) into a verdict."""
-    try:
-        trace = load_trace(trace_path)
-    except (ValueError, OSError) as exc:
-        raise click.ClickException(f"Could not load trace: {exc}") from exc
+    """Classify a saved TRACE_PATH (JSON or raw response) into a verdict.
+
+    Pass "-" to read the trace from stdin, so a live response can be piped
+    straight in: `curl -s <endpoint>/chat/completions ... | refusalscope classify -`
+    """
+    if trace_path == "-":
+        # sys.stdin, not click.get_text_stream (deprecated, removed in Click 9);
+        # CliRunner replaces sys.stdin, so this stays testable.
+        raw = sys.stdin.read()
+        try:
+            trace = load_trace_from_text(raw)
+        except ValueError as exc:
+            raise click.ClickException(f"Could not load trace: {exc}") from exc
+    else:
+        if not os.path.isfile(trace_path):
+            # Preserve click.Path(exists=True)'s usage-error contract (exit 2)
+            # now that existence is checked here instead of by the type.
+            raise click.BadParameter(
+                f"File '{trace_path}' does not exist.", param_hint="'TRACE_PATH'"
+            )
+        try:
+            trace = load_trace(trace_path)
+        except (ValueError, OSError) as exc:
+            raise click.ClickException(f"Could not load trace: {exc}") from exc
 
     verdict = classify(trace)
 

@@ -1,3 +1,38 @@
+## [0.8.0] - 2026-09-21
+
+A correctness iteration: one drift-gate masking fix, one repo-health fix that
+restores green CI, and one small CLI affordance. No scope changes.
+
+### Fixed
+
+- **A probe that errored on both sides no longer reads as "no drift".**
+  `_classify_kind` (refusalscope/drift.py) checked `old_label == new_label`
+  before the None guard, so a probe whose verdict was null on BOTH snapshots
+  (endpoint down / 401 / timeout on both runs) collapsed to kind `unchanged` —
+  excluded from the changed view, and when it was the only difference the
+  summary printed "no refusal-scope drift across the two snapshots" with exit
+  0. The v0.5.0 errored-kind fix covered the one-sided case only; the None
+  check now precedes the equality check so an error→error transition surfaces
+  as `errored` and is counted in the summary. Regression test in
+  tests/test_drift.py.
+
+- **CI is green again.** Every run on main since 2026-08-20 failed the
+  "Lint (ruff)" step (unpinned ruff turned on new default rules) while pytest
+  passed. All 9 findings are resolved with zero behavior change (sorted
+  imports/`__all__`, executable demo bit, unused `noqa` removed, justified
+  `noqa` on the four documented ValueError convention sites and the deliberate
+  per-probe fail-soft catch), and `ruff` is now pinned in ci.yml so a future
+  ruff release cannot silently re-break the gate.
+
+### Added
+
+- **`refusalscope classify -` reads the trace from stdin.** Pipe a live
+  response straight into the classifier without a temp file:
+  `curl -s .../chat/completions ... | refusalscope classify -`. Non-JSON input
+  falls back to the bare-string shape, and the exit-2-on-refusal and `--json`
+  contracts are unchanged. Documented in README.md / README.zh-CN.md;
+  regression tests in tests/test_cli_exit_code.py.
+
 # Changelog
 
 All notable changes to this project are documented here. The format is based on

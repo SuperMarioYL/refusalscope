@@ -168,3 +168,41 @@ def test_drift_summary_counts_errored_probes():
     assert "ERRORED" in out
     # The summary line now counts it (not just "0 ... 0 ... 0").
     assert "1 errored" in out
+
+
+# --------------------------------------------------------------------------- #
+# v0.8.0 — an error->error transition must surface as errored, not unchanged
+# --------------------------------------------------------------------------- #
+
+
+def test_error_to_error_not_silently_unchanged():
+    """A probe that errored on BOTH sides must not read as "no drift".
+
+    Before v0.8 _classify_kind checked `old_label == new_label` before the
+    None guard, so two consecutive errored runs (endpoint down / 401 on both
+    snapshots) collapsed to kind="unchanged" — excluded from `changed`, and
+    when it was the only difference the summary printed "no refusal-scope
+    drift across the two snapshots" with exit 0. A persistently broken
+    endpoint therefore read clean in the CI drift gate.
+    """
+    old = [_errored_row("p1")]
+    new = [_errored_row("p1")]
+    report = diff_snapshots(old, new)
+
+    assert report.diffs[0].kind == "errored"
+    assert {d.probe_id for d in report.errored} == {"p1"}
+    # It is part of `changed` (not silently dropped) and appears in the JSON view.
+    assert {d.probe_id for d in report.changed} == {"p1"}
+    assert report_to_dict(report)["errored"][0]["probe_id"] == "p1"
+
+    # The rendered summary counts it instead of printing "no drift".
+    import io
+
+    from rich.console import Console
+
+    from refusalscope.report import render_drift_report
+
+    buf = io.StringIO()
+    render_drift_report(report, console=Console(file=buf, force_terminal=False))
+    assert "1 errored" in buf.getvalue()
+    assert "no refusal-scope drift" not in buf.getvalue()
