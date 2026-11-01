@@ -242,6 +242,12 @@ def load_trace_from_text(raw: str) -> Trace:
     If the text is not valid JSON, it is treated as a bare response string
     (shape 1).
     """
+    # A UTF-8 BOM (common when a trace is saved by a Windows editor or
+    # PowerShell redirection) makes json.loads raise. Falling back to the bare
+    # string shape would then silently drop the prompt and every meta field —
+    # including choices[0].finish_reason, so a content_filter decline would be
+    # scored as a genuine ANSWER. Strip exactly one leading BOM before parsing.
+    raw = raw.removeprefix("\ufeff")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:

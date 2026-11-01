@@ -320,3 +320,78 @@ def test_probe_malformed_yaml_pack_surfaces_clean_error(tmp_path):
     assert "Error" in result.output
     assert "malformed YAML" in result.output
     assert not isinstance(result.exception, yaml.YAMLError)
+
+
+# --------------------------------------------------------------------------- #
+# v0.9.0 — an unwritable --json path must surface a clean error, not a traceback
+# --------------------------------------------------------------------------- #
+
+
+def test_probe_json_unwritable_path_surfaces_clean_error(tmp_path, monkeypatch):
+    # A --json target whose parent directory does not exist used to escape from
+    # cli.py's bare open() as a FileNotFoundError traceback after the whole
+    # probe run. It must be a clean ClickException (exit 1), like every other
+    # I/O boundary in the command.
+    monkeypatch.setattr(
+        cli_mod,
+        "run_pack",
+        lambda pack, endpoint, model, api_key=None, caller=None: [
+            _row("p1", VerdictLabel.answer)
+        ],
+    )
+    target = tmp_path / "missing-dir" / "out.json"
+
+    result = CliRunner().invoke(
+        cli_mod.main,
+        [
+            "probe",
+            "--endpoint", "http://fake/v1",
+            "--model", "fake",
+            "--pack", BUILTIN,
+            "--json", str(target),
+        ],
+    )
+    assert result.exit_code == 1
+    assert "Error" in result.output
+    assert "Could not write verdicts" in result.output
+    assert not isinstance(result.exception, OSError)
+
+
+# --------------------------------------------------------------------------- #
+# v0.9.0 — a baseline-side errored probe must fail the drift gate too
+# --------------------------------------------------------------------------- #
+
+
+def test_probe_compare_baseline_baseline_error_exits_2(tmp_path, monkeypatch):
+    # The fresh run is clean, but the baseline row errored, so the transition is
+    # `errored` (unknown refusal state). The gate must fail it, just as `diff`
+    # now does. Before v0.9 probe_cmd only gated on newly-refuses here.
+    baseline_path = tmp_path / "baseline.json"
+    baseline_path.write_text(
+        json.dumps(
+            [{"probe_id": "p1", "prompt": "ask", "category": "c",
+              "error": "ConnectionError: down", "verdict": None}]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        cli_mod,
+        "run_pack",
+        lambda pack, endpoint, model, api_key=None, caller=None: [
+            _row("p1", VerdictLabel.answer)
+        ],
+    )
+
+    result = CliRunner().invoke(
+        cli_mod.main,
+        [
+            "probe",
+            "--endpoint", "http://fake/v1",
+            "--model", "fake",
+            "--pack", BUILTIN,
+            "--compare-baseline", str(baseline_path),
+        ],
+    )
+    assert result.exit_code == 2, result.output
+    assert "ERRORED" in result.output

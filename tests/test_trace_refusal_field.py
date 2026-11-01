@@ -11,7 +11,11 @@ from __future__ import annotations
 
 from refusalscope import classify, normalize
 from refusalscope.model import VerdictLabel
-from refusalscope.trace import _extract_openai_response_text
+from refusalscope.trace import (
+    _extract_openai_response_text,
+    load_trace,
+    load_trace_from_text,
+)
 
 
 def test_extract_falls_back_to_refusal_when_content_null():
@@ -173,3 +177,51 @@ def test_pair_alias_branch_preserves_finish_reason():
     from refusalscope.signals import signal_content_filter
 
     assert signal_content_filter(trace).fired
+
+
+# --------------------------------------------------------------------------- #
+# v0.9.0 — a UTF-8 BOM must not degrade a saved trace to the bare-string shape
+# --------------------------------------------------------------------------- #
+
+
+def _content_filter_trace() -> dict:
+    return {
+        "object": "chat.completion",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": None},
+                "finish_reason": "content_filter",
+            }
+        ],
+    }
+
+
+def test_utf8_bom_text_keeps_openai_shape_and_content_filter():
+    # A UTF-8 BOM makes json.loads raise, and the fallback used to treat the
+    # whole document as a bare response string — dropping prompt + meta, so a
+    # content_filter decline (content=null) became a confident ANSWER. Before
+    # v0.9 this raw text classified as answer / exit 0.
+    import json
+
+    raw = "\ufeff" + json.dumps(_content_filter_trace())
+    trace = load_trace_from_text(raw)
+
+    assert trace.meta.get("finish_reason") == "content_filter"
+    assert trace.meta.get("source_shape") == "openai_response"
+    verdict = classify(trace)
+    assert verdict.label == VerdictLabel.hard_refusal
+    assert verdict.is_refusal()
+
+
+def test_utf8_bom_file_keeps_openai_shape_and_content_filter(tmp_path):
+    # The same BOM arrives through load_trace's file decode path (a trace saved
+    # by a Windows editor or PowerShell redirection).
+    import json
+
+    path = tmp_path / "bom-trace.json"
+    path.write_text("\ufeff" + json.dumps(_content_filter_trace()), encoding="utf-8")
+
+    trace = load_trace(str(path))
+    assert trace.meta.get("finish_reason") == "content_filter"
+    assert classify(trace).is_refusal()

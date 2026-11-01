@@ -135,7 +135,7 @@ def classify_cmd(trace_path: str, as_json: bool, show_response: bool) -> None:
     "baseline_path",
     type=click.Path(exists=True, dir_okay=False),
     default=None,
-    help="After running, diff the fresh verdicts against this stored `probe --json` baseline and report refusal-scope drift (exits 2 on newly-refuses).",
+    help="After running, diff the fresh verdicts against this stored `probe --json` baseline and report refusal-scope drift (exits 2 on newly-refuses or errored probes).",
 )
 def probe_cmd(
     endpoint: str,
@@ -161,14 +161,23 @@ def probe_cmd(
 
     if json_out:
         out = _probe_rows_json(rows)
-        with open(json_out, "w", encoding="utf-8") as fh:
-            json.dump(out, fh, indent=2)
+        try:
+            with open(json_out, "w", encoding="utf-8") as fh:
+                json.dump(out, fh, indent=2)
+        except OSError as exc:
+            # Same clean-error contract as every other I/O boundary in this
+            # command: an unwritable --json target must not traceback after the
+            # whole probe run has already happened.
+            raise click.ClickException(
+                f"Could not write verdicts to '{json_out}': {exc}"
+            ) from exc
         console.print(f"[dim]Wrote verdicts to {json_out}[/dim]")
 
     # Run + gate on drift in one command: diff the fresh verdicts against a
     # stored baseline and report what newly refuses / newly answers. Pure local
     # diff over the same verdict JSON `--json` emits — no new network path.
     newly_refuses: list = []
+    errored: list = []
     if baseline_path:
         try:
             baseline = load_snapshot(baseline_path)
@@ -179,13 +188,16 @@ def probe_cmd(
             ) from exc
         render_drift_report(report, console=console)
         newly_refuses = report.newly_refuses
+        errored = report.errored
 
     flagged = sum(
         1 for r in rows if (r["verdict"] and r["verdict"].is_refusal()) or r["error"]
     )
     # Non-zero when the run flagged a refusal/error OR the model newly refused
-    # anything vs the baseline (the same gate `refusalscope diff` uses).
-    if flagged or newly_refuses:
+    # anything / a probe errored vs the baseline (the same gate
+    # `refusalscope diff` uses). An errored probe means its refusal state is
+    # unknown, which must not read clean in a CI drift gate.
+    if flagged or newly_refuses or errored:
         sys.exit(2)
 
 
@@ -198,7 +210,8 @@ def diff_cmd(old_json: str, new_json: str, as_json: bool) -> None:
 
     Reports, per probe id, what NEWLY refuses (answer → refusal/shaping) and what
     NEWLY answers (refusal/shaping → answer) across OLD_JSON and NEW_JSON. Pure
-    local diff over the verdict JSON — no network, no stored history.
+    local diff over the verdict JSON — no network, no stored history. Exits 2
+    when anything newly refuses or a probe errored, for CI gating.
     """
     try:
         report = diff_files(old_json, new_json)
@@ -210,8 +223,11 @@ def diff_cmd(old_json: str, new_json: str, as_json: bool) -> None:
     else:
         render_drift_report(report, console=console)
 
-    # Non-zero exit when the model newly refuses anything, for CI drift gating.
-    if report.newly_refuses:
+    # Non-zero exit when the model newly refuses anything or a probe errored
+    # (unknown refusal state), for CI drift gating. This mirrors `probe`'s
+    # flagged-on-error contract so the same endpoint-down data cannot pass one
+    # gate and fail the other.
+    if report.newly_refuses or report.errored:
         sys.exit(2)
 
 

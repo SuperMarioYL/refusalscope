@@ -206,3 +206,51 @@ def test_error_to_error_not_silently_unchanged():
     render_drift_report(report, console=Console(file=buf, force_terminal=False))
     assert "1 errored" in buf.getvalue()
     assert "no refusal-scope drift" not in buf.getvalue()
+
+
+# --------------------------------------------------------------------------- #
+# v0.9.0 — the CI drift gate must fail on errored probes, not just refusal moves
+# --------------------------------------------------------------------------- #
+
+
+def _invoke_diff(tmp_path, old_rows, new_rows):
+    from click.testing import CliRunner
+
+    from refusalscope import cli as cli_mod
+
+    old_path = tmp_path / "old.json"
+    new_path = tmp_path / "new.json"
+    old_path.write_text(json.dumps(old_rows), encoding="utf-8")
+    new_path.write_text(json.dumps(new_rows), encoding="utf-8")
+    return CliRunner().invoke(
+        cli_mod.main, ["diff", str(old_path), str(new_path)]
+    )
+
+
+def test_diff_exits_2_on_answer_to_error(tmp_path):
+    # An endpoint going down between runs makes the probe's refusal state
+    # unknown. It must fail the CI gate, matching `probe` (which exits 2 on any
+    # errored row). Before v0.9 it printed ERRORED / "1 errored" but exited 0.
+    result = _invoke_diff(
+        tmp_path, [_row("p1", "answer")], [_errored_row("p1")]
+    )
+    assert result.exit_code == 2, result.output
+    assert "ERRORED" in result.output
+
+
+def test_diff_exits_2_on_error_to_error(tmp_path):
+    # A persistently broken endpoint (error on both sides) also leaves the
+    # refusal state unknown; it must not read clean in the gate.
+    result = _invoke_diff(
+        tmp_path, [_errored_row("p1")], [_errored_row("p1")]
+    )
+    assert result.exit_code == 2, result.output
+    assert "ERRORED" in result.output
+
+
+def test_diff_still_exits_0_when_only_unchanged(tmp_path):
+    # The new errored gate must not make a genuinely clean diff fail.
+    result = _invoke_diff(
+        tmp_path, [_row("p1", "answer")], [_row("p1", "answer")]
+    )
+    assert result.exit_code == 0, result.output

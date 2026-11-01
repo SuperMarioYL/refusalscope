@@ -1,3 +1,53 @@
+# Changelog
+
+All notable changes to this project are documented here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.9.0] - 2026-11-02
+
+A correctness iteration: one ingest false-negative, two broken error/gate paths,
+and a documentation-history repair. No new features, no scope changes.
+
+### Fixed
+
+- **A UTF-8 BOM no longer turns a saved trace into a bare string.** A trace
+  file carrying a UTF-8 BOM (common from Windows editors and PowerShell
+  redirection) made `json.loads` raise, so `refusalscope classify` fell back to
+  the bare-string input shape and silently dropped the prompt and all meta —
+  including `choices[0].finish_reason`. A content-filtered decline with
+  `content=null` was then scored `answer` (conf 0.667, exit 0) instead of
+  `hard_refusal` (exit 2). The leading BOM is now stripped before parsing, for
+  both saved files and `classify -` stdin. Regression tests in
+  tests/test_trace_refusal_field.py.
+
+- **An unwritable `probe --json` path fails cleanly.** The output write had no
+  error boundary, so a missing parent directory, a directory target, or a
+  read-only location escaped as a raw traceback after the whole probe run.
+  It now raises a clean `Error: Could not write verdicts to '<path>': ...`.
+  Regression test in tests/test_probes.py.
+
+- **The drift gate fails on errored probes.** `refusalscope diff` and
+  `probe --compare-baseline` exited 0 when the only change was an errored
+  probe, even though `probe` exits 2 on the same endpoint-down row and the
+  report already surfaced an ERRORED row and a "1 errored" count. Both gates
+  now exit 2 when a probe errored (unknown refusal state), so an endpoint-down
+  regression cannot pass CI. Regression tests in tests/test_drift.py and
+  tests/test_probes.py.
+
+- **CHANGELOG structure and history restored.** The newest entry sat above the
+  document title, and the shipped v0.4.0 release had no entry at all. Entries
+  are newest-first below the title again, and a faithful v0.4.0 entry records
+  the `classify --json` exit-2 CI fix, the Apache-2.0 LICENSE adoption, and the
+  bilingual marketing site.
+
+### Changed
+
+- The version lockstep test now also pins `pyproject.toml`'s
+  `project.version`, so the pip distribution metadata cannot drift from
+  `VERSION`, `__version__`, the site `content_version`, the CHANGELOG head, and
+  `--version`.
+
 ## [0.8.0] - 2026-09-21
 
 A correctness iteration: one drift-gate masking fix, one repo-health fix that
@@ -32,12 +82,6 @@ restores green CI, and one small CLI affordance. No scope changes.
   falls back to the bare-string shape, and the exit-2-on-refusal and `--json`
   contracts are unchanged. Documented in README.md / README.zh-CN.md;
   regression tests in tests/test_cli_exit_code.py.
-
-# Changelog
-
-All notable changes to this project are documented here. The format is based on
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
-adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.7.0] - 2026-09-04
 
@@ -127,6 +171,24 @@ no scope changes.
   pattern is now anchored to a denial verb ("I cannot"/"can't"/"don't"/"am
   unable to"/"won't") so a real "I would be glad to help …" answer is no
   longer painted red.
+
+## [0.4.0] - 2026-07-23
+
+A CI-contract fix plus repository and distribution groundwork.
+
+### Fixed
+
+- **`classify --json` exits 2 on a refusal/shaping verdict.** The `--json`
+  branch returned before the `is_refusal()` check, so the machine-readable CI
+  shape always exited 0 even on a hard refusal. The exit check now runs before
+  the return, so both output shapes honor the documented exit-2 gate.
+  Regression test in tests/test_cli_exit_code.py.
+
+### Added
+
+- **Apache-2.0 LICENSE**, with matching README and package metadata.
+- **Bilingual marketing site** (`web/site.json` + `pages.yml`), a static
+  distribution surface alongside the CLI.
 
 ## [0.3.0] - 2026-07-17
 

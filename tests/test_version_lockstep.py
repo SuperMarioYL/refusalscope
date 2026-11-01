@@ -2,7 +2,8 @@
 
 Asserts every user-facing version surface agrees on one version string:
 
-  VERSION file == __version__ == web/site.json content_version
+  VERSION file == __version__ == pyproject.toml project.version
+                 == web/site.json content_version
                  == CHANGELOG head == CLI --version
 
 This test FAILS on the v0.6.0 tag because ``web/site.json`` still carried
@@ -16,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import tomllib
 
 from click.testing import CliRunner
 
@@ -33,6 +35,14 @@ def _read_version_file() -> str:
 def _read_site_content_version() -> str:
     with open(os.path.join(_REPO_ROOT, "web", "site.json"), encoding="utf-8") as fh:
         return json.load(fh)["content_version"].lstrip("v")
+
+
+def _read_pyproject_version() -> str:
+    # The pip distribution metadata is a user-facing version surface too; it
+    # used to be omitted from this guard, so `pip install` could report a
+    # different version than `refusalscope --version` with the test still green.
+    with open(os.path.join(_REPO_ROOT, "pyproject.toml"), "rb") as fh:
+        return tomllib.load(fh)["project"]["version"]
 
 
 def _read_changelog_head() -> str:
@@ -56,6 +66,7 @@ def test_all_version_surfaces_agree():
         "VERSION": _read_version_file(),
         "__version__": __version__,
         "site.content_version": _read_site_content_version(),
+        "pyproject.version": _read_pyproject_version(),
         "CHANGELOG head": _read_changelog_head(),
         "CLI --version": _read_cli_version(),
     }
